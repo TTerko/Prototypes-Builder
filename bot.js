@@ -7,6 +7,7 @@
 // Import Botkit's core features
 const { Botkit } = require('botkit');
 const { BotkitCMSHelper } = require('botkit-plugin-cms');
+const { SlackBotWorker } = require('botbuilder-adapter-slack');
 
 // Import a platform-specific adapter for slack.
 
@@ -57,7 +58,7 @@ adapter.use(new SlackMessageTypeMiddleware());
 
 
 const controller = new Botkit({
-    webhook_uri: '',
+    webhook_uri: '/api/slack',
 
     adapter: adapter,
 
@@ -101,9 +102,23 @@ controller.on('slash_command',function(bot,message)
 })
 
 
-controller.webserver.get('/', (req, res) => {
+controller.webserver.post('/', (req, res) => {
+    //console.log(adapter);
     res.send(`This app is running Botkit ${ controller.version }.`);
+});
 
+
+controller.webserver.post('/api/unitycloud', (req, res) => {
+    console.log(req.body);
+var bot = controller.spawn({});
+
+bot.say(
+  {
+    text: 'my message text',
+    channel: 'C0H338YH4' // a valid slack channel, FB
+  }
+);
+    //res.send(`This app is running Botkit ${ controller.version }.`);
 });
 
 
