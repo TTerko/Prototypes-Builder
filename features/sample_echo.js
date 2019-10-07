@@ -151,12 +151,13 @@ async function UpdateBuildTarget(user, branch, platform)
 
 	const buildsResponse = await fetch(GetStartBuildURL(user, platform), { method: 'GET', headers: headers});
 	const builds = await buildsResponse.json();
-	var postfix = "";
+	var postfix = 1;
 
 	if (builds.length > 0)
 	{
-		postfix = builds[0].build;
+		postfix = builds[0].build + 1;
 	}
+
 	var bundleIdCompanyName = "501";
 	if (platform == "android")
 	{
@@ -168,6 +169,9 @@ async function UpdateBuildTarget(user, branch, platform)
 	await fetch(GetCloudBuildTargetURL(user, platform), { method: 'PUT', headers: headers, body:  JSON.stringify(body)});
 	console.log(GetStartBuildURL(user, platform));
 	await fetch(GetStartBuildURL(user, platform), { method: 'POST', headers: headers});
+
+
+	await bot.replyInteractive(message, "*" + platform + " " + branch + "* build #" +postfix + " successfuly initiated! :check:");	
 	//const buildTargetResponseJson = await buildTargetResponse.json();	
 }
 
@@ -261,7 +265,6 @@ async function onButtonSelected(bot, message)
 		var platform = value.platform;
 
 		const result = await UpdateBuildTarget(user, branch, platform);
-		await bot.replyInteractive(message, "*" + platform + " " + branch + "* build successfuly initiated! :check:");
 	}
 }
 
