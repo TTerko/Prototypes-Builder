@@ -138,7 +138,7 @@ function GetStartBuildURL(user, platform)
 	return 'https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/' + GetCloudBuildProjectName(user) + "/buildtargets/" + platform + "/builds";
 }
 
-async function UpdateBuildTarget(user, branch, platform)
+async function UpdateBuildTarget(bot, message, user, branch, platform)
 {
 	var body = {};
 	body.settings = {};
@@ -171,7 +171,7 @@ async function UpdateBuildTarget(user, branch, platform)
 	await fetch(GetStartBuildURL(user, platform), { method: 'POST', headers: headers});
 
 
-	await bot.replyInteractive(message, "*" + platform + " " + branch + "* build #" +postfix + " successfuly initiated! :check:");	
+	await bot.replyInteractive(message, "*" + platform + " " + branch + "* build #" + postfix + " successfuly initiated! :check:");	
 	//const buildTargetResponseJson = await buildTargetResponse.json();	
 }
 
@@ -264,7 +264,7 @@ async function onButtonSelected(bot, message)
 		var branch = value.branch;
 		var platform = value.platform;
 
-		const result = await UpdateBuildTarget(user, branch, platform);
+		const result = await UpdateBuildTarget(bot, message, user, branch, platform);
 	}
 }
 
