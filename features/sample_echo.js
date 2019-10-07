@@ -144,17 +144,27 @@ async function UpdateBuildTarget(user, branch, platform)
 	body.settings = {};
 	body.settings.scm = {};
 	body.settings.scm.branch = branch;
+	body.settings.platform = {};
 
 	headers = { "Content-type" : "application/json",
 			'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
 
+	const buildsResponse = await fetch(GetStartBuildURL(user, platform), { method: 'GET', headers: headers});
+	const builds = await buildsResponse.json();
+	var postfix = "";
+
+	if (builds.length > 0)
+	{
+		postfix = builds[0].build;
+	}
+
+	body.settings.platform.bundleId = "com.studio501." + branch.replace(/[^a-zA-Z ]/g + postfix, "");
+
 	await fetch(GetCloudBuildTargetURL(user, platform), { method: 'PUT', headers: headers, body:  JSON.stringify(body)});
-console.log(GetStartBuildURL(user, platform));
+	console.log(GetStartBuildURL(user, platform));
 	await fetch(GetStartBuildURL(user, platform), { method: 'POST', headers: headers});
 	//const buildTargetResponseJson = await buildTargetResponse.json();	
 }
-
-var startBuildURL = 'https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/prototypes-oles/buildtargets/_all/builds';
 
 async function onBranchSelected(bot, message)
 {
