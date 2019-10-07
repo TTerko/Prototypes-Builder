@@ -157,8 +157,13 @@ async function UpdateBuildTarget(user, branch, platform)
 	{
 		postfix = builds[0].build;
 	}
+	var bundleIdCompanyName = "501";
+	if (platform == "android")
+	{
+		bundleIdCompanyName = "studio501";
+	}
 
-	body.settings.platform.bundleId = "com.studio501." + branch.replace(/[^a-zA-Z ]/g + postfix, "");
+	body.settings.platform.bundleId = "com." + bundleIdCompanyName + "." + branch.replace(/[^a-zA-Z ]/g + postfix, "");
 
 	await fetch(GetCloudBuildTargetURL(user, platform), { method: 'PUT', headers: headers, body:  JSON.stringify(body)});
 	console.log(GetStartBuildURL(user, platform));
