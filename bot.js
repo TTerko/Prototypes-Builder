@@ -8,7 +8,7 @@
 const { Botkit } = require('botkit');
 const { BotkitCMSHelper } = require('botkit-plugin-cms');
 
-const slackUrl = 'https://hooks.slack.com/services/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';
+const slackUrl = 'https://hooks.slack.com/services/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';
 
 // Import a platform-specific adapter for slack.
 
@@ -406,6 +406,7 @@ async function onBuildFailed(body)
 
 async function say(message)
 {
+    console.log("saying to: " + slackUrl);
     await fetch(slackUrl, {
       method: 'post',
       headers: slackHeaders,
@@ -443,6 +444,7 @@ async function say(message)
 
 async function sayDownloadApp(message)
 {
+
     await fetch(slackUrl, {
       method: 'post',
       headers: slackHeaders,
