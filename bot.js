@@ -408,7 +408,7 @@ async function say(message)
 {
     console.log("saying to: " + slackUrl);
     await fetch(slackUrl, {
-      method: 'post',
+      method: 'POST',
       headers: slackHeaders,
       body: JSON.stringify({
             "type": "modal",
@@ -446,7 +446,7 @@ async function sayDownloadApp(message)
 {
 
     await fetch(slackUrl, {
-      method: 'post',
+      method: 'POST',
       headers: slackHeaders,
       body: JSON.stringify({
             "type": "modal",
