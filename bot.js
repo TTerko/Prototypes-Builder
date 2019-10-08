@@ -8,7 +8,6 @@
 const { Botkit } = require('botkit');
 const { BotkitCMSHelper } = require('botkit-plugin-cms');
 
-const slackUrl = 'https://hooks.slack.com/services/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';
 const request = require('request');
 
 // Import a platform-specific adapter for slack.
@@ -31,7 +30,7 @@ if (process.env.MONGO_URI) {
 
 const adapter = new SlackAdapter({
     // REMOVE THIS OPTION AFTER YOU HAVE CONFIGURED YOUR APP!
-    enable_incomplete: true,
+    // enable_incomplete: true,
 
     // parameters used to secure webhook endpoint
     verificationToken: process.env.verificationToken,
@@ -115,6 +114,7 @@ controller.webserver.get('/', (req, res) => {
 //     // getInstallLink points to slack's oauth endpoint and includes clientId and scopes
 //     res.redirect(controller.adapter.getInstallLink());
 // });
+var slackUrl = "";
 
 controller.webserver.get('/install/auth', async (req, res) => {
     try {
@@ -122,6 +122,8 @@ controller.webserver.get('/install/auth', async (req, res) => {
 
         console.log('FULL OAUTH DETAILS', results);
 
+        slackUrl = results.incoming_webhook.url;
+        
         // Store token by team in bot state.
         tokenCache[results.team_id] = results.bot.bot_access_token;
 
@@ -397,14 +399,26 @@ async function say(message)
             ]
         })
     };
-    
-    await fetch(process.env.slackUrl, req);
+
+    await fetch(getSlackURL(), req);
+}
+
+function getSlackURL()
+{
+    if (slackUrl != "")
+    {
+        return slackUrl;
+    }
+    else
+    {
+        return process.env.slackUrl;
+    }
 }
 
 async function sayDownloadApp(message)
 {
 
-    await fetch(process.env.slackUrl, {
+    await fetch(getSlackURL(), {
       method: 'POST',
       headers: slackHeaders,
       body: JSON.stringify({
