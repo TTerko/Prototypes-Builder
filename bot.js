@@ -301,6 +301,9 @@ async function getShareDetails(shareId)
 async function onBuildSuccess(body)
 {
     var buildData = getBuildData(body);
+    buildData.build = 84;
+    buildData.buildtargetid = "android";
+
     var buildStatus = await getBuildStatus(buildData);
     var shareId = await getShareId(buildData);
     console.log("shareId: " + shareId);
@@ -309,23 +312,12 @@ async function onBuildSuccess(body)
     var branch = buildStatus.scmBranch;
     console.log(shareDetails);
     var shareLink = "https://developer.cloud.unity3d.com/share/share.html?shareId=" + shareId;
-    var apkoripa = "";
-
-    if (shareDetails.platform == "ios")
-    {
-        apkoripa = "     <" + shareDetails.links.download_primary.href + "|Download>*";
-    } 
-    else if (shareDetails.platform == "android")
-    {
-        apkoripa = "     <" + shareDetails.links.download_primary.href + "|Download>*";
-    }
-
+    
     var message = {};
-    message.text = getBuildInfoPrefix(buildStatus) + " successfuly finished! :classical_building: :checkered_flag:"
-     + "\n*<" + shareLink + "|Install>" + apkoripa;
+    message.text = getBuildInfoPrefix(buildStatus) + " successfuly finished! :classical_building: :checkered_flag:" + + getUserNotifyTag(branch, buildStatus.platform);
     message.icon = shareDetails.links.icon.href;
     
-    await sayDownloadApp(message + getUserNotifyTag(branch, buildStatus.platform), shareDetails.links.download_primary.href, shareLink);  
+    await sayDownloadApp(message , shareDetails.links.download_primary.href, shareLink);  
 }
 
 
@@ -470,25 +462,33 @@ async function sayDownloadApp(message, downloadLink, installLink)
                             "text": message.text
                         }
                     ]
-                }
-            ],
-                "attachments": [
-                    {
-                        "fallback": "Book your flights at https://flights.example.com/book/r123456",
-                        "actions": [
-                            {
-                                "type": "button",
-                                "text": "Install",
-                                "url": installLink
+                },
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "emoji": true,
+                                "text": "Install"
                             },
-                            {
-                                "type": "button",
-                                "text": "Download",
-                                "url": downloadLink
-                            }
-                        ]
-                    }
-                ]
+                            "style": "primary",
+                            "url": installLink
+                        },
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "emoji": true,
+                                "text": "Download"
+                            },
+                            "style": "primary",
+                            "url": downloadLink
+                        }
+                    ]
+                }
+            ]
         })
     });
 }
