@@ -47,47 +47,7 @@ module.exports = function(controller) {
         await bot.reply(message, `Sounds like your choice is ${ message.incoming_message.channelData.actions[0].value }`)
     });
 
-async function selectUser(bot, message)
-{
-    await bot.replyInteractive(message,{
-            blocks: [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "Hello, I am here to help you build stuff! \n*Please select a user:*"
-                    }
-                },
-                {
-                    "type": "actions",
-                    "elements": [
-                        {
-                            "type": "users_select",
-                            "placeholder": {
-                                "type": "plain_text",
-                                "text": "Select a user",
-                                "emoji": true
-                            }
-                        }
-                    ]
-                }
-            ]
-        }  
-    );
-}
-    controller.on('slash_command', async(bot, message) => {
-        if (message.text === 'plain') {
-            await bot.reply(message, 'This is a plain reply');
-        } else if (message.text === 'public') {
-            await bot.replyPublic(message, 'This is a public reply');
-        } else if (message.text === 'private') {
-            await bot.replyPrivate(message, 'This is a private reply');
-        }
-        await selectUser(bot, message);
-        // set http status
-        //bot.httpBody({text:'You can send an immediate response using bot.httpBody()'});
 
-    });
 
     controller.on('interactive_message', async (bot, message) => {
 

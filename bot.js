@@ -359,7 +359,7 @@ async function onBuildQueued(body)
 {
     var buildData = getBuildData(body);
     var buildStatus = await getBuildStatus(buildData);
-    
+
     var branch = buildStatus.scmBranch;
 
     await say(getBuildInfoPrefix(buildStatus) + " was put into queue :vertical_traffic_light:" + getUserNotifyTag(branch, buildStatus.platform));  
@@ -377,7 +377,7 @@ async function onBuildCanceled(body)
 
     var branch = buildStatus.scmBranch;
 
-    await say(getBuildInfoPrefix(buildStatus) + " was canceled :heavy_multiplication_x:" + getUserNotifyTag(branch, buildStatus.platform));  
+    await say("~" + getBuildInfoPrefix(buildStatus) + " was canceled~ :heavy_multiplication_x:" + getUserNotifyTag(branch, buildStatus.platform));  
 }
 
 async function onBuildFailed(body)

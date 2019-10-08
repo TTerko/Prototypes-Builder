@@ -7,6 +7,263 @@ const request = require("request");
 const fetch = require('node-fetch');	
 var botFile = require('../bot.js');
 
+headers = { "Content-type" : "application/json",
+	'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
+
+function getBuildStatusTopBlock(runningBuilds)
+{
+	var block = {
+		"type": "section",
+		"text": {
+			"type": "mrkdwn",
+			"text": "*Build Status*"
+		}
+	}
+	if (runningBuilds.length > 0)
+	{
+		block.accessory =
+		 {
+			"type": "button",
+			"text": {
+				"type": "plain_text",
+				"text": "Cancel All Builds"
+			},
+			"value": JSON.stringify({ value : "cancel_build",
+							build : "_all"
+						}),
+			"action_id": "button",
+			"style": "danger"
+		}
+	}
+	return block;
+}
+
+
+function getDivider()
+{
+	var block = 
+		{
+			"type": "divider"
+		};
+	return block;
+}
+
+function getBuildSmallValue(buildToConvert)
+{
+	var value = {
+		projectId: buildToConvert.projectId,
+		buildtargetid : buildToConvert.buildtargetid,
+		build : buildToConvert.build,
+		buildStartTime : buildToConvert.buildStartTime
+	}
+
+	return value;
+}
+
+function getRuningBuildLine(index, build)
+{
+	var block = {
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": index + ". *:" + build.platform + ": " + build.scmBranch + "* build *#" + 
+				build.build + "* is running for *" + getMinutesRunningForBuild(build) + " min*"
+			},
+			"accessory": {
+				"type": "button",
+				"text": {
+					"type": "plain_text",
+					"text": "Cancel"
+				},
+				"value": JSON.stringify({ value : "cancel_build",
+							build : getBuildSmallValue(build)
+						}),
+				"action_id": "button",
+				"style": "danger"
+			}
+		};
+
+	return block;
+}
+
+function getQueuedBuildLine(index, build)
+{
+	var block = {
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": index + ". *:" + build.platform + ": " + build.scmBranch + "* build *#" + 
+				build.build + "* is in queue"
+			},
+			"accessory": {
+				"type": "button",
+				"text": {
+					"type": "plain_text",
+					"text": "Remove"
+				},
+				"value": JSON.stringify({ value : "cancel_build",
+							build : getBuildSmallValue(build)
+						}),
+				"action_id": "button",
+				"style": "danger"
+			}
+		};
+
+	return block;
+}
+
+function getTextSection(text)
+{
+	var block = {
+		"type": "section",
+		"text": {
+			"type": "mrkdwn",
+			"text": text
+		}
+	};
+
+	return block;
+}
+
+function getBuildStatusButtons()
+{
+	var block = {
+			"type": "actions",
+			"elements": [
+				{
+					"type": "button",
+					"text": {
+						"type": "plain_text",
+						"text": "Add new build",
+						"emoji": true
+					},
+					"value": "addNewBuild",
+					"style": "primary"
+				},
+                getQuitButton()
+			]
+		};
+
+	return block;
+}
+
+function getQuitButton()
+{
+	var block = {
+					"type": "button",
+					"text": {
+						"type": "plain_text",
+						"text": "Quit",
+						"emoji": true
+					},
+					"value": "cancel",
+					"style": "danger"
+		};
+
+	return 	block;
+}
+function getRunningBuildsBlock(runningBuilds)
+{
+	var blocks = [];
+
+	blocks.push(getDivider());
+	
+	if (runningBuilds.length == 0)
+	{
+		blocks.push(getTextSection("1. Build slot is available"));
+		blocks.push(getTextSection("2. Build slot is available"));
+	}
+
+	for(var i = 0; i < runningBuilds.length; i++)
+	{
+		blocks.push(getRuningBuildLine(i + 1, runningBuilds[i]));
+	}
+
+	if (runningBuilds.length == 1)
+	{
+		blocks.push(getTextSection("2. Build slot is available"));
+	}
+
+	return blocks;
+}
+
+function getQueuedBuildsBlock(runningBuilds, queuedBuilds)
+{
+	var blocks = [];
+
+	blocks.push(getDivider());
+	
+	if (queuedBuilds.length == 0)
+	{
+		blocks.push(getTextSection("The queue is empty"));
+	}
+
+	for(var i = 0; i < queuedBuilds.length; i++)
+	{
+		blocks.push(getQueuedBuildLine(i + 1, queuedBuilds[i]));
+	}
+
+	return blocks;
+}
+
+async function getBlocksWithBuildStatus(blocks)
+{
+   	var runningBuilds = await GetRunningBuilds();
+   	var queuedBuilds = await GetQueuedBuilds();
+
+	blocks = getBuildStatusBlocks(runningBuilds, queuedBuilds).concat(blocks);
+
+	return blocks;
+}
+
+async function selectUser(bot, message, runningBuilds, queuedBuilds)
+{
+	var block = {
+            blocks: [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "*Please select a user*:"
+                    }
+                },
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "users_select",
+                            "placeholder": {
+                                "type": "plain_text",
+                                "text": "Select a user",
+                                "emoji": true
+                            }
+                        },
+		                getQuitButton()
+                    ]
+                },
+            ]
+        } ; 
+
+  	block.blocks = getBuildStatusBlocks(runningBuilds, queuedBuilds).concat(block.blocks);
+	console.log(block);
+    await bot.replyInteractive(message, block);
+}
+
+function getBuildStatusBlocks(runningBuilds, queuedBuilds)
+{
+	var blocks = [];
+	blocks.push(getDivider());
+	blocks.push(getBuildStatusTopBlock(runningBuilds));
+
+	blocks = blocks.concat(getRunningBuildsBlock(runningBuilds));
+	blocks.push(getDivider());
+	blocks = blocks.concat(getQueuedBuildsBlock(runningBuilds, queuedBuilds));
+   	blocks.push(getDivider());
+	
+	
+	return blocks;
+}
+
 async function onUserSelected(bot, message)
 {
 	var user = message.actions[0].selected_user;
@@ -23,7 +280,7 @@ async function onUserSelected(bot, message)
 		{
 			error = branches.message;
 		}
-		await bot.replyInteractive(message, GetBranchesBlocks(branches, user));
+		await bot.replyInteractive(message, await GetBranchesBlocks(branches, user));
 		// LogBranches(branches);
 	}
 	else
@@ -60,13 +317,25 @@ async function onButtonSelected(bot, message)
 	if (message.actions[0].value == "cancel")
 	{
 		bot.replyInteractive(message, "Bye bye!");
-		// bot.deleteMessage(message);
+	}
+	else if (message.actions[0].value == "addNewBuild")
+	{
+		await startUserSelection(bot, message);
 	}
 	else
 	{
 		var state = JSON.parse(message.actions[0].value);
 
-		const result = await UpdateBuildTarget(bot, message, state);
+		if (state.value == "cancel_build")
+		{
+			await CancelBuild(state.build);
+			await startMenu(bot, message);
+		}
+		else
+		{
+			const result = await UpdateBuildTarget(bot, message, state);	
+		}
+		
 	}
 }
 
@@ -87,7 +356,7 @@ function GetRepoURL(user)
 	return 'https://gitlab.com/api/v4/projects/' + gitlabRepos[user] + '/repository/branches?private_token=jdtk93Az_2x3XupkrkH_';
 }
 
-function GetBranchesBlocks(branches, user)
+async function GetBranchesBlocks(branches, user)
 {
 	var blocks = 
 	{
@@ -111,7 +380,8 @@ function GetBranchesBlocks(branches, user)
 					},
 					"options": [
 					]
-				}
+				},
+				getQuitButton()
 			]
 		}
 		]	
@@ -121,6 +391,8 @@ function GetBranchesBlocks(branches, user)
   	{
   		blocks.blocks[1].elements[0].options.push(addBranchOption(branches[i].name, user));
   	}
+
+  	blocks.blocks = await getBlocksWithBuildStatus(blocks.blocks);
 
   	return blocks;
 }
@@ -176,6 +448,11 @@ function ListAllBuildsThatAreQueuedURL()
 	return 'https://build-api.cloud.unity3d.com/api/v1/orgs/terko/builds?buildStatus=queued';
 }
 
+function ListAllBuildsThatAreSentToBuilderURL()
+{
+	return 'https://build-api.cloud.unity3d.com/api/v1/orgs/terko/builds?buildStatus=sentToBuilder';
+}
+
 function GetCancelBuildURL(project, buildtargetid, build)
 {
 	return "https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/" + project + "/buildtargets/" + buildtargetid + "/builds/" + build;
@@ -200,34 +477,52 @@ function FilterSameBranchAndPlatformForBuilds(builds, branch, platform)
 	return sameRunningBuilds;
 }
 
-async function CheckIfPlatformIsAlreadyInQueue(bot, message, branch, platform)
+async function GetRunningBuilds()
 {
-	headers = { "Content-type" : "application/json",
-		'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
+	var runningBuildsResponse = await fetch(ListAllBuildsThatAreRunningURL(), { method: 'GET', headers: headers});
+	var runningBuilds = await runningBuildsResponse.json();
 
+	return runningBuilds;
+}
+
+async function GetQueuedBuilds()
+{
 	var queuedBuildsResponse = await fetch(ListAllBuildsThatAreQueuedURL(), { method: 'GET', headers: headers});
 	var queuedBuilds = await queuedBuildsResponse.json();
 	
-	console.log(queuedBuilds);
+	var sendToBuilderBuildsResponse = await fetch(ListAllBuildsThatAreSentToBuilderURL(), { method: 'GET', headers: headers});
+	var sendToBuilderBuilds = await sendToBuilderBuildsResponse.json();
+
+	queuedBuilds = queuedBuilds.concat(sendToBuilderBuilds);
+
+	return queuedBuilds;
+}
+
+async function CheckIfPlatformIsAlreadyInQueue(bot, message, branch, platform)
+{
+	queuedBuilds = await GetQueuedBuilds();
+
 	var sameQueuedBuilds = FilterSameBranchAndPlatformForBuilds(queuedBuilds, branch, platform);
-	console.log(branch);
-	console.log(platform);
-	console.log(sameQueuedBuilds);
+
 	return sameQueuedBuilds.length > 0;
 }
 
 async function GetSameRunningBuilds(bot, message, branch, platform)
 {
-
-	headers = { "Content-type" : "application/json",
-		'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
-
-	var runningBuildsResponse = await fetch(ListAllBuildsThatAreRunningURL(), { method: 'GET', headers: headers});
-	var runningBuilds = await runningBuildsResponse.json();
+	var runningBuilds = await GetRunningBuilds();
 
 	var sameRunningBuilds = FilterSameBranchAndPlatformForBuilds(runningBuilds, branch, platform);
 
 	return sameRunningBuilds;
+}
+
+function getMinutesRunningForBuild(build)
+{
+	var unixTimeZero = Date.parse(build.buildStartTime);
+	var dateNow = new Date();
+	minutes = Math.ceil(((dateNow - unixTimeZero)/1000)/60);	
+
+	return minutes;
 }
 
 async function GetRunningTimeForPlatfom(bot, message, branch, platform)
@@ -236,9 +531,7 @@ async function GetRunningTimeForPlatfom(bot, message, branch, platform)
 	var minutes = 0;
 	if (sameRunningBuilds.length > 0)
 	{
-		var unixTimeZero = Date.parse(sameRunningBuilds[0].buildStartTime);
-		var dateNow = new Date();
-		minutes = Math.ceil(((dateNow - unixTimeZero)/1000)/60);	
+		minutes = getMinutesRunningForBuild(sameRunningBuilds[0]);
 	}
 	
 	return {isRunning : sameRunningBuilds.length > 0, time : minutes};
@@ -250,8 +543,13 @@ async function CancelRunningBuilds(bot, message, branch, platform)
 
 	for(var i = 0; i < sameRunningBuilds.length; i++)
 	{
-		await fetch(GetCancelBuildURL(sameRunningBuilds[i].projectId, sameRunningBuilds[i].buildtargetid, sameRunningBuilds[i].build), { method: 'DELETE', headers: headers});
+		await CancelBuild(sameRunningBuilds[i]);
 	}
+}
+
+async function CancelBuild(build)
+{
+	await fetch(GetCancelBuildURL(build.projectId, build.buildtargetid, build.build), { method: 'DELETE', headers: headers});
 }
 
 async function TryRunningBuild(bot, message, user, branch, platform)
@@ -335,7 +633,7 @@ async function InitiateBuild(bot, message, user, branch, platform)
 
 
 	//await bot.replyInteractive(message, "*[" + platform + "] (" + branch + ")* build is initiated");	
-	await bot.replyInteractive(message, "Done!");	
+	await startMenu(bot, message);	
 }
 
 async function getPlatformButtonText(bot, message, branch, platform, readablePlatform)
@@ -343,7 +641,7 @@ async function getPlatformButtonText(bot, message, branch, platform, readablePla
 	var isInQueue = await CheckIfPlatformIsAlreadyInQueue(bot, message, branch, platform);
 	var runState = await GetRunningTimeForPlatfom(bot, message, branch, platform);
 	var buttonText = ":" + readablePlatform + ":";
-	
+
 	if (isInQueue == true)
 	{
 		buttonText = ":" + readablePlatform + ": (Already queued)";
@@ -410,31 +708,70 @@ async function GetPlatformSelectionBlocks(bot, message, user, branch)
 				"style": "primary",
 				"value": JSON.stringify(bothValue)
 			},
-			{
-				"type": "button",
-				"text": {
-					"type": "plain_text",
-					"emoji": true,
-					"text": "Quit without changing anything"
-				},
-				"style": "danger",
-				"value": "cancel"
-			}
+			getQuitButton()
 		]
 	}
 ]};
 }
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function SelectPlatform(bot, message, user, branch)
 {
-	var blocks = await GetPlatformSelectionBlocks(bot, message, user, branch);
+	var block = await GetPlatformSelectionBlocks(bot, message, user, branch);
+
+	block.blocks = await getBlocksWithBuildStatus(block.blocks);
+
+	await bot.replyInteractive(message, block);
+}
+
+async function ReplyInteractiveBlocks(bot, message, blocksArray)
+{
+	var blocksToSend = 
+	{
+		blocks : blocksArray
+	};
+	blocksToSend = JSON.stringify(blocksToSend);
+	blocksToSend = JSON.parse(blocksToSend);
+	console.log(blocksToSend);
+	await bot.replyInteractive(message, 
+		{
+			blocks: blocksArray
+
+		});
+}
+
+async function startUserSelection(bot, message)
+{
+   	var runningBuilds = await GetRunningBuilds();
+   	var queuedBuilds = await GetQueuedBuilds();
+
+	await selectUser(bot, message, runningBuilds, queuedBuilds);
+}
+
+async function startMenu(bot, message)
+{
+	var runningBuilds = await GetRunningBuilds();
+   	var queuedBuilds = await GetQueuedBuilds();
+
+   	var blocks =  getBuildStatusBlocks(runningBuilds, queuedBuilds);
+
+	blocks = blocks.concat(getBuildStatusButtons());
+
+   	blocks = {blocks: blocks}
 
 	await bot.replyInteractive(message, blocks);
 }
 
-
-
 module.exports = function(controller) {
+
+	controller.on('slash_command', async(bot, message) => {
+	   await startMenu(bot, message);
+
+	   	//await ReplyInteractiveBlocks(bot, message, blocks);
+	    // 
+	});
 
     controller.hears('sample','message,direct_message', async(bot, message) => {
         await bot.reply(message, 'I heard a sample message.');
