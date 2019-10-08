@@ -8,7 +8,7 @@
 const { Botkit } = require('botkit');
 const { BotkitCMSHelper } = require('botkit-plugin-cms');
 
-const slackUrl = 'http://hooks.slack.com/services/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';
+const slackUrl = 'https://hooks.slack.com/services/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';
 const request = require('request');
 
 // Import a platform-specific adapter for slack.
