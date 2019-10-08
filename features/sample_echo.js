@@ -5,6 +5,7 @@
 
 const request = require("request");
 const fetch = require('node-fetch');	
+var botFile = require('../bot.js');
 
 async function onUserSelected(bot, message)
 {
@@ -180,25 +181,89 @@ function GetCancelBuildURL(project, buildtargetid, build)
 	return "https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/" + project + "/buildtargets/" + buildtargetid + "/builds/" + build;
 }
 
-function CheckIfSameBuildIsRunning(runningBuilds, branch, platform)
+function FilterSameBranchAndPlatformForBuilds(builds, branch, platform)
 {
 	var sameRunningBuilds = [];
 
-	for (var i = 0; i < runningBuilds.length; i++)
+	for (var i = 0; i < builds.length; i++)
 	{
-		if (runningBuilds[i].scmBranch == branch && runningBuilds[i].platform == platform)
+		if (builds[i].scmBranch == branch && builds[i].platform == platform)
 		{
 			var build = {};
-			build.build = runningBuilds[i].build;
-			build.projectId = runningBuilds[i].projectId;
-			build.buildtargetid = runningBuilds[i].buildtargetid;
-			build.buildStartTime = runningBuilds[i].buildStartTime;
+			build.build = builds[i].build;
+			build.projectId = builds[i].projectId;
+			build.buildtargetid = builds[i].buildtargetid;
+			build.buildStartTime = builds[i].buildStartTime;
 			sameRunningBuilds.push(build);
 		}
 	}
 	return sameRunningBuilds;
 }
 
+async function CheckIfPlatformIsAlreadyInQueue(bot, message, branch, platform)
+{
+	headers = { "Content-type" : "application/json",
+		'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
+
+	var queuedBuildsResponse = await fetch(ListAllBuildsThatAreQueuedURL(), { method: 'GET', headers: headers});
+	var queuedBuilds = await queuedBuildsResponse.json();
+	
+	console.log(queuedBuilds);
+	var sameQueuedBuilds = FilterSameBranchAndPlatformForBuilds(queuedBuilds, branch, platform);
+	console.log(branch);
+	console.log(platform);
+	console.log(sameQueuedBuilds);
+	return sameQueuedBuilds.length > 0;
+}
+
+async function GetSameRunningBuilds(bot, message, branch, platform)
+{
+
+	headers = { "Content-type" : "application/json",
+		'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
+
+	var runningBuildsResponse = await fetch(ListAllBuildsThatAreRunningURL(), { method: 'GET', headers: headers});
+	var runningBuilds = await runningBuildsResponse.json();
+
+	var sameRunningBuilds = FilterSameBranchAndPlatformForBuilds(runningBuilds, branch, platform);
+
+	return sameRunningBuilds;
+}
+
+async function GetRunningTimeForPlatfom(bot, message, branch, platform)
+{
+	var sameRunningBuilds = await GetSameRunningBuilds(bot, message, branch, platform);
+	var minutes = 0;
+	if (sameRunningBuilds.length > 0)
+	{
+		var unixTimeZero = Date.parse(sameRunningBuilds[0].buildStartTime);
+		var dateNow = new Date();
+		minutes = Math.ceil(((dateNow - unixTimeZero)/1000)/60);	
+	}
+	
+	return {isRunning : sameRunningBuilds.length > 0, time : minutes};
+}
+
+async function CancelRunningBuilds(bot, message, branch, platform)
+{
+	var sameRunningBuilds = await GetSameRunningBuilds(bot, message, branch, platform);
+
+	for(var i = 0; i < sameRunningBuilds.length; i++)
+	{
+		await fetch(GetCancelBuildURL(sameRunningBuilds[i].projectId, sameRunningBuilds[i].buildtargetid, sameRunningBuilds[i].build), { method: 'DELETE', headers: headers});
+	}
+}
+
+async function TryRunningBuild(bot, message, user, branch, platform)
+{
+	await CancelRunningBuilds(bot, message, branch, platform);
+
+	var displayName = await getDisplayName(process.env.botToken, message.user);
+
+	botFile.buildUserCache[branch + platform] = displayName;
+
+	await InitiateBuild(bot, message, user, branch, platform);	
+}
 
 async function UpdateBuildTarget(bot, message, state)
 {
@@ -206,51 +271,38 @@ async function UpdateBuildTarget(bot, message, state)
 	var branch = state.branch;
 	var platform = state.platform;
 
-
-	headers = { "Content-type" : "application/json",
-			'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
-
-	var runningBuildsResponse = await fetch(ListAllBuildsThatAreRunningURL(), { method: 'GET', headers: headers});
-	var runningBuilds = await runningBuildsResponse.json();
-	var queuedBuildsResponse = await fetch(ListAllBuildsThatAreQueuedURL(), { method: 'GET', headers: headers});
-	var queuedBuilds = await queuedBuildsResponse.json();
-	runningBuilds = runningBuilds.concat(queuedBuilds);
-	
-	var sameRunningBuilds = CheckIfSameBuildIsRunning(runningBuilds, branch, platform);
-
-	var sameQueuedBuilds = CheckIfSameBuildIsRunning(queuedBuilds, branch, platform);
-
-	if (sameQueuedBuilds.length > 0)
+	if (platform == "both")
 	{
-		await bot.replyInteractive(message, "*" + branch + "* (build #" + sameQueuedBuilds[0].build + ") is already in queue :vertical_traffic_light:");
-	}
-	else if (sameRunningBuilds.length > 0 && state.shouldRestart == null)
-	{
-		var unixTimeZero = Date.parse(sameRunningBuilds[0].buildStartTime);
-		var dateNow = new Date();
-		var minutes = Math.ceil(((dateNow - unixTimeZero)/1000)/60);
+		state.platform = "ios";
+		await TryRunningBuild(bot, message, user, branch, state.platform);
 
-		await bot.replyInteractive(message, GetRestartBuildBlocks(user, branch, platform, minutes));
+		state.platform = "android";
+		await TryRunningBuild(bot, message, user, branch, state.platform);
 	}
 	else
 	{
-		if (state.shouldRestart != null && state.shouldRestart == true)
-		{
-			for(var i = 0; i < sameRunningBuilds.length; i++)
-			{
-				await fetch(GetCancelBuildURL(sameRunningBuilds[i].projectId, sameRunningBuilds[i].buildtargetid, sameRunningBuilds[i].build), { method: 'DELETE', headers: headers});
-			}
-		}
-
-		await InitiateBuild(bot, message, user, branch, platform);
+		await TryRunningBuild(bot, message, user, branch, platform);	
 	}
+}
 
-	//const buildTargetResponseJson = await buildTargetResponse.json();	
+async function getDisplayName(token, user)
+{
+	var res = await fetch(getUserURL(token, user), {
+      method: 'get'
+    });
+
+    var resJson = await res.json();
+		
+    return resJson.user.profile.display_name;
+}
+
+function getUserURL(token, user)
+{
+	return "https://slack.com/api/users.info?token=" + token + "&user=" + user;
 }
 
 async function InitiateBuild(bot, message, user, branch, platform)
 {
-
 	var body = {};
 	body.settings = {};
 	body.settings.scm = {};
@@ -286,28 +338,45 @@ async function InitiateBuild(bot, message, user, branch, platform)
 	await bot.replyInteractive(message, "Done!");	
 }
 
-function GetRestartBuildBlocks(user, branch, platform, timeSinceBuildStarted)
+async function getPlatformButtonText(bot, message, branch, platform, readablePlatform)
 {
-	var restartValue = {};
-	restartValue.user = user;
-	restartValue.branch = branch;
-	restartValue.platform = platform;
-	restartValue.shouldRestart = true;
-
-	var addNewValue = {};
-	addNewValue.user = user;
-	addNewValue.branch = branch;
-	addNewValue.platform = platform;
-	addNewValue.shouldRestart = false;
+	var isInQueue = await CheckIfPlatformIsAlreadyInQueue(bot, message, branch, platform);
+	var runState = await GetRunningTimeForPlatfom(bot, message, branch, platform);
+	var buttonText = ":" + readablePlatform + ":";
 	
+	if (isInQueue == true)
+	{
+		buttonText = ":" + readablePlatform + ": (Already queued)";
+	}
+	if (runState.isRunning == true)
+	{
+		buttonText = ":" + readablePlatform + ": (Started " + runState.time + "min ago)";
+	}
+
+	return buttonText;
+}
+
+async function GetPlatformSelectionBlocks(bot, message, user, branch)
+{
+	var iosButtonText = await getPlatformButtonText(bot, message, branch, "ios", "iOS");
+	var androidButtonText = await getPlatformButtonText(bot, message, branch, "android", "Android");
+
+	var iosValue = {};
+	iosValue.user = user;
+	iosValue.branch = branch;
+	iosValue.platform = "ios";
+
+	var androidValue = {};
+	androidValue.user = user;
+	androidValue.branch = branch;
+	androidValue.platform = "android";
+	
+	var bothValue = {};
+	bothValue.user = user;
+	bothValue.branch = branch;
+	bothValue.platform = "both";
+
 	return {blocks: [
-		{
-        "type": "section",
-        "text": {
-            "type": "mrkdwn",
-            "text": "*" + branch + "* is already building for *" + timeSinceBuildStarted + " min*"
-        }
-    },
 	{
 		"type": "actions",
 		"elements": [
@@ -316,20 +385,30 @@ function GetRestartBuildBlocks(user, branch, platform, timeSinceBuildStarted)
 				"text": {
 					"type": "plain_text",
 					"emoji": true,
-					"text": "Restart"
+					"text": iosButtonText
 				},
 				"style": "primary",
-				"value": JSON.stringify(restartValue)
+				"value": JSON.stringify(iosValue)
 			},
 			{
 				"type": "button",
 				"text": {
 					"type": "plain_text",
 					"emoji": true,
-					"text": "Add New To Queue"
+					"text": androidButtonText
 				},
 				"style": "primary",
-				"value": JSON.stringify(addNewValue)
+				"value": JSON.stringify(androidValue)
+			},
+			{
+				"type": "button",
+				"text": {
+					"type": "plain_text",
+					"emoji": true,
+					"text": "Both :ios:/:android:"
+				},
+				"style": "primary",
+				"value": JSON.stringify(bothValue)
 			},
 			{
 				"type": "button",
@@ -346,60 +425,11 @@ function GetRestartBuildBlocks(user, branch, platform, timeSinceBuildStarted)
 ]};
 }
 
-function GetPlatformSelectionBlocks(user, branch)
-{
-	var iosValue = {};
-	iosValue.user = user;
-	iosValue.branch = branch;
-	iosValue.platform = "ios";
-	
-	var androidValue = {};
-	androidValue.user = user;
-	androidValue.branch = branch;
-	androidValue.platform = "android";
-	
-	return {blocks: [
-	{
-		"type": "actions",
-		"elements": [
-			{
-				"type": "button",
-				"text": {
-					"type": "plain_text",
-					"emoji": true,
-					"text": "iOS"
-				},
-				"style": "primary",
-				"value": JSON.stringify(iosValue)
-			},
-			{
-				"type": "button",
-				"text": {
-					"type": "plain_text",
-					"emoji": true,
-					"text": "Android"
-				},
-				"style": "primary",
-				"value": JSON.stringify(androidValue)
-			},
-			{
-				"type": "button",
-				"text": {
-					"type": "plain_text",
-					"emoji": true,
-					"text": "Cancel"
-				},
-				"style": "danger",
-				"value": "cancel"
-			}
-		]
-	}
-]};
-}
-
 async function SelectPlatform(bot, message, user, branch)
 {
-	await bot.replyInteractive(message, GetPlatformSelectionBlocks(user, branch));
+	var blocks = await GetPlatformSelectionBlocks(bot, message, user, branch);
+
+	await bot.replyInteractive(message, blocks);
 }
 
 

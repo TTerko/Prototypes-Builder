@@ -9,6 +9,8 @@ const { Botkit } = require('botkit');
 const { BotkitCMSHelper } = require('botkit-plugin-cms');
 
 const request = require('request');
+var buildUserCache = {};
+exports.buildUserCache = {};
 
 // Import a platform-specific adapter for slack.
 
@@ -25,7 +27,6 @@ if (process.env.MONGO_URI) {
         url : process.env.MONGO_URI,
     });
 }
-
 
 
 const adapter = new SlackAdapter({
@@ -219,13 +220,6 @@ controller.webserver.post('/api/unitycloud', (req, res) =>
         onBuildStarted(body);
     }
     
-   // var body = JSON.stringify(payload);
-   // fetch(slackUrl, { method: 'POST', headers: 'Content-type: application/json', body : '{"text":"Hello, World!"}' }).then(res => console.log(res));
-
-    // fetch(slackUrl, {
-    //   method: 'get',
-    //   headers: unityHeaders
-    // }).then(res => console.log(res));
     res.send(`Ok.`);
 });
 
@@ -253,7 +247,7 @@ function getLogURL(buildData)
     var buildtargetid = buildData.buildtargetid;
     var build = buildData.build;
 
-    return 'https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/' + projectid + "/buildtargets/" + buildtargetid + '/builds/' + build + "/log?compact=true?linenumbers=true";
+    return 'https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/' + projectid + "/buildtargets/" + buildtargetid + '/builds/' + build + "/log?compact=true&linenumbers=true";
 }
 
 function hyphenize(str)
@@ -281,7 +275,7 @@ async function onBuildStarted(body)
 
     var branch = buildStatus.scmBranch;
 
-    await say(getBuildInfoPrefix(buildStatus) + " started! :building_construction:");  
+    await say(getBuildInfoPrefix(buildStatus) + " started! :building_construction:" +  + getUserNotifyTag(branch, buildStatus.platform));  
 }
 
 async function getShareId(buildData)
@@ -331,8 +325,7 @@ async function onBuildSuccess(body)
      + "\n*<" + shareLink + "|Install>" + apkoripa;
     message.icon = shareDetails.links.icon.href;
     
-    console.log(message.text);
-    await sayDownloadApp(message);  
+    await sayDownloadApp(message + getUserNotifyTag(branch, buildStatus.platform), shareDetails.links.download_primary.href, shareLink,);  
 }
 
 
@@ -353,23 +346,28 @@ async function getLog(buildData)
       headers: unityHeaders
     });
     var resJson = await res.text();
-    console.log(resJson);
+
     return resJson;
 }
 
 function getBuildInfoPrefix(buildStatus)
 {
-    return "*:" + buildStatus.platform + ": (" + buildStatus.scmBranch + ")* build *#" + buildStatus.build + "* ";
+    return "*:" + buildStatus.platform + ": (" + buildStatus.scmBranch + ")* build *#" + buildStatus.build + "*";
 }
 
 async function onBuildQueued(body)
 {
     var buildData = getBuildData(body);
     var buildStatus = await getBuildStatus(buildData);
-    console.log(buildStatus);
+    
     var branch = buildStatus.scmBranch;
 
-    await say(getBuildInfoPrefix(buildStatus) + " was put into queue :vertical_traffic_light: ");  
+    await say(getBuildInfoPrefix(buildStatus) + " was put into queue :vertical_traffic_light:" + getUserNotifyTag(branch, buildStatus.platform));  
+}
+
+function getUserNotifyTag(branch, platform)
+{
+    return " @" + exports.buildUserCache[branch + platform];
 }
 
 async function onBuildCanceled(body)
@@ -379,7 +377,7 @@ async function onBuildCanceled(body)
 
     var branch = buildStatus.scmBranch;
 
-    await say(getBuildInfoPrefix(buildStatus) + " was canceled :heavy_multiplication_x:");  
+    await say(getBuildInfoPrefix(buildStatus) + " was canceled :heavy_multiplication_x:" + getUserNotifyTag(branch, buildStatus.platform));  
 }
 
 async function onBuildFailed(body)
@@ -391,7 +389,7 @@ async function onBuildFailed(body)
     var log = await getLog(buildData);
     var codeLog = "\n```" + log + "```";
 
-    await say(getBuildInfoPrefix(buildStatus) + " FAILED :x:" + codeLog);  
+    await say(getBuildInfoPrefix(buildStatus) + " FAILED :x:"  + getUserNotifyTag(branch, buildStatus.platform) + codeLog);  
 }
 
 
@@ -403,6 +401,46 @@ async function say(message)
               headers: slackHeaders,
               body: JSON.stringify({
                     "type": "modal",
+                    "title": {
+                        "type": "plain_text",
+                        "text": "My App",
+                        "emoji": true
+                    },
+                    "submit": {
+                        "type": "plain_text",
+                        "text": "Submit",
+                        "emoji": true
+                    },
+                    "close": {
+                        "type": "plain_text",
+                        "text": "Cancel",
+                        "emoji": true
+                    },
+                    "blocks": [
+                        {
+                            "type": "context",
+                            "elements": [
+                                {
+                                    "type": "mrkdwn",
+                                    "text": message
+                                }
+                            ]
+                        }
+                    ]
+            })
+    };
+
+    await fetch(process.env.slackUrl, req);
+}
+
+async function sayDownloadApp(message, downloadLink, installLink)
+{
+
+    await fetch(process.env.slackUrl, {
+      method: 'POST',
+      headers: slackHeaders,
+      body: JSON.stringify({
+            "type": "modal",
             "title": {
                 "type": "plain_text",
                 "text": "My App",
@@ -423,57 +461,34 @@ async function say(message)
                     "type": "context",
                     "elements": [
                         {
+                            "type": "image",
+                            "image_url": message.icon,
+                            "alt_text": "images"
+                        },
+                        {
                             "type": "mrkdwn",
-                            "text": message
+                            "text": message.text
                         }
                     ]
                 }
-            ]
-        })
-    };
-
-    await fetch(process.env.slackUrl, req);
-}
-
-async function sayDownloadApp(message)
-{
-
-    await fetch(process.env.slackUrl, {
-      method: 'POST',
-      headers: slackHeaders,
-      body: JSON.stringify({
-            "type": "modal",
-        "title": {
-            "type": "plain_text",
-            "text": "My App",
-            "emoji": true
-        },
-        "submit": {
-            "type": "plain_text",
-            "text": "Submit",
-            "emoji": true
-        },
-        "close": {
-            "type": "plain_text",
-            "text": "Cancel",
-            "emoji": true
-        },
-                "blocks": [
+            ],
+                "attachments": [
                     {
-                        "type": "context",
-                        "elements": [
+                        "fallback": "Book your flights at https://flights.example.com/book/r123456",
+                        "actions": [
                             {
-                                "type": "image",
-                                "image_url": message.icon,
-                                "alt_text": "images"
+                                "type": "button",
+                                "text": "Install",
+                                "url": installLink
                             },
                             {
-                                "type": "mrkdwn",
-                                "text": message.text
+                                "type": "button",
+                                "text": "Download",
+                                "url": downloadLink
                             }
                         ]
                     }
                 ]
-            })
-        });
+        })
+    });
 }
