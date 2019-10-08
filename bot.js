@@ -7,7 +7,8 @@
 // Import Botkit's core features
 const { Botkit } = require('botkit');
 const { BotkitCMSHelper } = require('botkit-plugin-cms');
-const { SlackBotWorker } = require('botbuilder-adapter-slack');
+
+const slackUrl = 'https://hooks.slack.com/services/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';
 
 // Import a platform-specific adapter for slack.
 
@@ -108,19 +109,6 @@ controller.webserver.post('/', (req, res) => {
 });
 
 
-controller.webserver.post('/api/unitycloud', (req, res) => {
-    console.log(req.body);
-var bot = controller.spawn({});
-
-bot.say(
-  {
-    text: 'my message text',
-    channel: 'C0H338YH4' // a valid slack channel, FB
-  }
-);
-    //res.send(`This app is running Botkit ${ controller.version }.`);
-});
-
 
 controller.webserver.get('/install', (req, res) => {
     // getInstallLink points to slack's oauth endpoint and includes clientId and scopes
@@ -183,3 +171,314 @@ async function getBotUserByTeam(teamId) {
     }
 }
 
+
+
+
+//=======UNITY CLOUD
+
+
+
+var payload = 
+    {
+    "type": "modal",
+    "title": {
+        "type": "plain_text",
+        "text": "My App",
+        "emoji": true
+    },
+    "submit": {
+        "type": "plain_text",
+        "text": "Submit",
+        "emoji": true
+    },
+    "close": {
+        "type": "plain_text",
+        "text": "Cancel",
+        "emoji": true
+    },
+    "blocks": [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Select whose game do you want to build"
+            }
+        },
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "users_select",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "Select a user",
+                        "emoji": true
+                    }
+                }
+            ]
+        }
+    ]
+};
+
+// get details on shared build (links.icon.href links.download_primary.href)
+// https://build-api.cloud.unity3d.com/api/v1/shares/{shareid}
+
+// get shareId
+// https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/prototypes-oles/buildtargets/ios/builds/19/share
+
+// get buildStatus (scmBranch)
+// https://build-api.cloud.unity3d.com/api/v1/orgs/{orgid}/projects/{projectid}/buildtargets/{buildtargetid}/builds/{number}
+
+//failure
+//queued
+//success
+//canceled
+//started
+
+unityHeaders = { "Content-type" : "application/json",
+        'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
+slackHeaders = { 'Content-type' : 'application/json' };
+
+controller.webserver.post('/api/unitycloud', (req, res) => 
+{
+    var body = req.body;
+    if (req.body.buildStatus == "failure")
+    {
+        onBuildFailed(body);
+    }
+    if (req.body.buildStatus == "queued")
+    {
+        onBuildQueued(body);
+    }
+    if (req.body.buildStatus == "success")
+    {
+        onBuildSuccess(body);
+    }
+    if (req.body.buildStatus == "canceled")
+    {
+        onBuildCanceled(body);
+    }
+    if (req.body.buildStatus == "started")
+    {
+        onBuildStarted(body);
+    }
+     
+   // var body = JSON.stringify(payload);
+   // fetch(slackUrl, { method: 'POST', headers: 'Content-type: application/json', body : '{"text":"Hello, World!"}' }).then(res => console.log(res));
+
+    // fetch(slackUrl, {
+    //   method: 'get',
+    //   headers: unityHeaders
+    // }).then(res => console.log(res));
+
+});
+
+function getBuildStatusURL(buildData)
+{
+    var projectid = buildData.projectid;
+    var buildtargetid = buildData.buildtargetid;
+    var build = buildData.build;
+
+    return 'https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/' + projectid + '/buildtargets/' + buildtargetid + '/builds/' + build;
+}
+
+function getShareIdURL(buildData)
+{
+    var projectid = buildData.projectid;
+    var buildtargetid = buildData.buildtargetid;
+    var build = buildData.build;
+
+    return 'https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/' + projectid + '/buildtargets/' + buildtargetid + '/builds/' + build + "/share";
+}
+
+function hyphenize(str)
+{
+    return str.replace(/\s+/g, '-').toLowerCase();
+}
+
+function getBuildData(body)
+{
+    return {projectid: hyphenize(body.projectName), buildtargetid: hyphenize(body.buildTargetName), build: body.buildNumber, platform : body.platform};
+}
+
+
+function getBuildStartedPayload()
+{
+    payload = {"text" : "buildStarted"}
+
+    return JSON.stringify(payload);
+}
+
+async function onBuildStarted(body)
+{
+    var buildData = getBuildData(body);
+    var buildStatus = await getBuildStatus(buildData);
+
+    var branch = buildStatus.scmBranch;
+
+    await say(getBuildInfoPrefix(buildStatus) + " started! :building_construction:");  
+}
+
+async function getShareId(buildData)
+{
+    var res = await fetch(getShareURL(buildData), {
+      method: 'get',
+      headers: unityHeaders
+    });
+    resJson = await res.json();
+    return resJson;
+}
+
+async function getShareDetails(shareId)
+{
+    var res = await fetch("https://build-api.cloud.unity3d.com/api/v1/shares/" + shareid, {
+      method: 'get',
+      headers: unityHeaders
+    });
+    resJson = await res.json();
+    return resJson;
+}
+
+async function onBuildSuccess(body)
+{
+    var buildData = getBuildData(body);
+    var buildStatus = await getBuildStatus(buildData);
+    var shareId = await getShareId(buildData);
+    var shareDetails = await getShareDetails(shareId);
+
+    var branch = buildStatus.scmBranch;
+    
+    var message = {};
+    message.text = getBuildInfoPrefix(buildStatus) + " successfuly finished! :classical_building: :checkered_flag:";
+    message.icon = shareDetails.links.icon.href;
+    
+    var shareLink = "https://developer.cloud.unity3d.com/share/share.html?shareId=" + shareId;
+
+    await sayDownloadApp(message + "\n*<" + shareLink + "|Download>*");  
+}
+
+
+async function getBuildStatus(buildData)
+{
+    var res = await fetch(getBuildStatusURL(buildData), {
+      method: 'get',
+      headers: unityHeaders
+    });
+    resJson = await res.json();
+    return resJson;
+}
+
+function getBuildInfoPrefix(buildStatus)
+{
+    return "*:" + buildStatus.platform + ": (" + buildStatus.scmBranch + ")* build *#" + buildStatus.build + "* ";
+}
+
+async function onBuildQueued(body)
+{
+    var buildData = getBuildData(body);
+    var buildStatus = await getBuildStatus(buildData);
+    console.log(buildStatus);
+    var branch = buildStatus.scmBranch;
+
+    await say(getBuildInfoPrefix(buildStatus) + " was put into queue :vertical_traffic_light: ");  
+}
+
+async function onBuildCanceled(body)
+{
+    var buildData = getBuildData(body);
+    var buildStatus = await getBuildStatus(buildData);
+
+    var branch = buildStatus.scmBranch;
+
+    await say(getBuildInfoPrefix(buildStatus) + " was canceled :heavy_multiplication_x:");  
+}
+
+async function onBuildFailed(body)
+{
+    var buildData = getBuildData(body);
+    var buildStatus = await getBuildStatus(buildData);
+
+    var branch = buildStatus.scmBranch;
+
+    await say(getBuildInfoPrefix(buildStatus) + " FAILED :x:");  
+}
+
+
+async function say(message)
+{
+    await fetch(slackUrl, {
+      method: 'post',
+      headers: slackHeaders,
+      body: JSON.stringify({
+            "type": "modal",
+    "title": {
+        "type": "plain_text",
+        "text": "My App",
+        "emoji": true
+    },
+    "submit": {
+        "type": "plain_text",
+        "text": "Submit",
+        "emoji": true
+    },
+    "close": {
+        "type": "plain_text",
+        "text": "Cancel",
+        "emoji": true
+    },
+    "blocks": [
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": message
+                }
+            ]
+        }
+    ]
+})
+    });
+}
+
+async function sayDownloadApp(message)
+{
+    await fetch(slackUrl, {
+      method: 'post',
+      headers: slackHeaders,
+      body: JSON.stringify({
+            "type": "modal",
+    "title": {
+        "type": "plain_text",
+        "text": "My App",
+        "emoji": true
+    },
+    "submit": {
+        "type": "plain_text",
+        "text": "Submit",
+        "emoji": true
+    },
+    "close": {
+        "type": "plain_text",
+        "text": "Cancel",
+        "emoji": true
+    },
+            "blocks": [
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "image",
+                            "image_url": message.icon,
+                            "alt_text": "images"
+                        },
+                        {
+                            "type": "mrkdwn",
+                            "text": message.text
+                        }
+                    ]
+                }
+            ]
+        })
+    });
+}

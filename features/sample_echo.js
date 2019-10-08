@@ -222,7 +222,7 @@ async function UpdateBuildTarget(bot, message, state)
 
 	if (sameQueuedBuilds.length > 0)
 	{
-		await bot.replyInteractive(message, "*" + branch + "* (build #" + sameQueuedBuilds[0].build + ") is already in queue :check:");
+		await bot.replyInteractive(message, "*" + branch + "* (build #" + sameQueuedBuilds[0].build + ") is already in queue :vertical_traffic_light:");
 	}
 	else if (sameRunningBuilds.length > 0 && state.shouldRestart == null)
 	{
@@ -282,7 +282,8 @@ async function InitiateBuild(bot, message, user, branch, platform)
 	await fetch(GetStartBuildURL(user, platform), { method: 'POST', headers: headers});
 
 
-	await bot.replyInteractive(message, "*" + platform + " " + branch + "* build successfuly initiated! :check:");	
+	//await bot.replyInteractive(message, "*[" + platform + "] (" + branch + ")* build is initiated");	
+	await bot.replyInteractive(message, "Done!");	
 }
 
 function GetRestartBuildBlocks(user, branch, platform, timeSinceBuildStarted)
