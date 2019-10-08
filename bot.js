@@ -9,6 +9,7 @@ const { Botkit } = require('botkit');
 const { BotkitCMSHelper } = require('botkit-plugin-cms');
 
 const slackUrl = 'https://hooks.slack.com/services/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';
+const request = require('request');
 
 // Import a platform-specific adapter for slack.
 
@@ -407,6 +408,41 @@ async function onBuildFailed(body)
 async function say(message)
 {
     console.log("saying to: " + slackUrl);
+    request.post(
+      {
+        headers : slackHeaders,
+        uri: slackUrl,
+        body : JSON.stringify({
+            "type": "modal",
+    "title": {
+        "type": "plain_text",
+        "text": "My App",
+        "emoji": true
+    },
+    "submit": {
+        "type": "plain_text",
+        "text": "Submit",
+        "emoji": true
+    },
+    "close": {
+        "type": "plain_text",
+        "text": "Cancel",
+        "emoji": true
+    },
+    "blocks": [
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": message
+                }
+            ]
+        }
+    ]
+})
+      });
+
     await fetch(slackUrl, {
       method: 'POST',
       headers: slackHeaders,
