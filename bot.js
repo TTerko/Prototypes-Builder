@@ -197,6 +197,7 @@ slackHeaders = { 'Content-type' : 'application/json' };
 controller.webserver.post('/api/unitycloud', (req, res) => 
 {
     var body = req.body;
+
     if (req.body.buildStatus == "failure")
     {
         onBuildFailed(body);
@@ -217,7 +218,7 @@ controller.webserver.post('/api/unitycloud', (req, res) =>
     {
         onBuildStarted(body);
     }
-     
+    
    // var body = JSON.stringify(payload);
    // fetch(slackUrl, { method: 'POST', headers: 'Content-type: application/json', body : '{"text":"Hello, World!"}' }).then(res => console.log(res));
 
@@ -244,6 +245,15 @@ function getShareIdURL(buildData)
     var build = buildData.build;
 
     return 'https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/' + projectid + '/buildtargets/' + buildtargetid + '/builds/' + build + "/share";
+}
+
+function getLogURL(buildData)
+{
+    var projectid = buildData.projectid;
+    var buildtargetid = buildData.buildtargetid;
+    var build = buildData.build;
+
+    return 'https://build-api.cloud.unity3d.com/api/v1/orgs/terko/projects/' + projectid + "/buildtargets/" + buildtargetid + '/builds/' + build + "/log?compact=true?linenumbers=true";
 }
 
 function hyphenize(str)
@@ -280,17 +290,17 @@ async function getShareId(buildData)
       method: 'get',
       headers: unityHeaders
     });
-    resJson = await res.json();
-    return resJson;
+    var resJson = await res.json();
+    return resJson.shareid;
 }
 
 async function getShareDetails(shareId)
 {
-    var res = await fetch("https://build-api.cloud.unity3d.com/api/v1/shares/" + shareid, {
+    var res = await fetch("https://build-api.cloud.unity3d.com/api/v1/shares/" + shareId, {
       method: 'get',
       headers: unityHeaders
     });
-    resJson = await res.json();
+    var resJson = await res.json();
     return resJson;
 }
 
@@ -299,17 +309,30 @@ async function onBuildSuccess(body)
     var buildData = getBuildData(body);
     var buildStatus = await getBuildStatus(buildData);
     var shareId = await getShareId(buildData);
+    console.log("shareId: " + shareId);
     var shareDetails = await getShareDetails(shareId);
 
     var branch = buildStatus.scmBranch;
-    
+    console.log(shareDetails);
+    var shareLink = "https://developer.cloud.unity3d.com/share/share.html?shareId=" + shareId;
+    var apkoripa = "";
+
+    if (shareDetails.platform == "ios")
+    {
+        apkoripa = "     <" + shareDetails.links.download_primary.href + "|Download>*";
+    } 
+    else if (shareDetails.platform == "android")
+    {
+        apkoripa = "     <" + shareDetails.links.download_primary.href + "|Download>*";
+    }
+
     var message = {};
-    message.text = getBuildInfoPrefix(buildStatus) + " successfuly finished! :classical_building: :checkered_flag:";
+    message.text = getBuildInfoPrefix(buildStatus) + " successfuly finished! :classical_building: :checkered_flag:"
+     + "\n*<" + shareLink + "|Install>" + apkoripa;
     message.icon = shareDetails.links.icon.href;
     
-    var shareLink = "https://developer.cloud.unity3d.com/share/share.html?shareId=" + shareId;
-
-    await sayDownloadApp(message + "\n*<" + shareLink + "|Download>*");  
+    console.log(message.text);
+    await sayDownloadApp(message);  
 }
 
 
@@ -319,7 +342,18 @@ async function getBuildStatus(buildData)
       method: 'get',
       headers: unityHeaders
     });
-    resJson = await res.json();
+    var resJson = await res.json();
+    return resJson;
+}
+
+async function getLog(buildData)
+{
+    var res = await fetch(getLogURL(buildData), {
+      method: 'get',
+      headers: unityHeaders
+    });
+    var resJson = await res.text();
+    console.log(resJson);
     return resJson;
 }
 
@@ -354,8 +388,10 @@ async function onBuildFailed(body)
     var buildStatus = await getBuildStatus(buildData);
 
     var branch = buildStatus.scmBranch;
+    var log = await getLog(buildData);
+    var codeLog = "\n```" + log + "```";
 
-    await say(getBuildInfoPrefix(buildStatus) + " FAILED :x:");  
+    await say(getBuildInfoPrefix(buildStatus) + " FAILED :x:" + codeLog);  
 }
 
 
@@ -407,37 +443,37 @@ async function sayDownloadApp(message)
       headers: slackHeaders,
       body: JSON.stringify({
             "type": "modal",
-    "title": {
-        "type": "plain_text",
-        "text": "My App",
-        "emoji": true
-    },
-    "submit": {
-        "type": "plain_text",
-        "text": "Submit",
-        "emoji": true
-    },
-    "close": {
-        "type": "plain_text",
-        "text": "Cancel",
-        "emoji": true
-    },
-            "blocks": [
-                {
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "image",
-                            "image_url": message.icon,
-                            "alt_text": "images"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": message.text
-                        }
-                    ]
-                }
-            ]
-        })
-    });
+        "title": {
+            "type": "plain_text",
+            "text": "My App",
+            "emoji": true
+        },
+        "submit": {
+            "type": "plain_text",
+            "text": "Submit",
+            "emoji": true
+        },
+        "close": {
+            "type": "plain_text",
+            "text": "Cancel",
+            "emoji": true
+        },
+                "blocks": [
+                    {
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "image",
+                                "image_url": message.icon,
+                                "alt_text": "images"
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": message.text
+                            }
+                        ]
+                    }
+                ]
+            })
+        });
 }

@@ -42,51 +42,6 @@ module.exports = function(controller) {
         await bot.say('And this should also be in that thread!');
     });
 
-    controller.hears('blocks', 'message', async(bot, message) => {
-
-        await bot.reply(message,{
-            blocks: [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "Hello, I am here to help you build stuff! *Please select a user:*"
-                    }
-                },
-                {
-                    "type": "divider"
-                },
-                {
-                    "type": "actions",
-                    "elements": [
-                        {
-                            "type": "users_select",
-                            "placeholder": {
-                                "type": "plain_text",
-                                "text": "Select a user",
-                                "emoji": true
-                            }
-                        }
-                    ]
-                },
-                {
-                    "type": "actions",
-                    "elements": [
-                        {
-                            "type": "button",
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Button",
-                                "emoji": true
-                            },
-                            "value": "click_me_123"
-                        }
-                    ]
-                }
-            ]
-        }  
-    );
-});
     controller.on('block_actions', async (bot, message) => {
         console.log('block_actions', message);
         await bot.reply(message, `Sounds like your choice is ${ message.incoming_message.channelData.actions[0].value }`)
@@ -94,58 +49,14 @@ module.exports = function(controller) {
 
 async function selectUser(bot, message)
 {
-     // await bot.replyWithDialog(message, new SlackDialog('this is a dialog', '123', 'Submit', [
-     //            {
-     //          "label": "User",
-     //          "name": "user",
-     //          "type": "select",
-     //          "data_source": "users"
-     //        },
-     //        {
-     //          "label": "Branch",
-     //          "type": "select",
-     //          "name": "branches",
-     //          "options": [
-     //            {
-     //              "label": "Hindu (Indian) vegetarian",
-     //              "value": "hindu"
-     //            },
-     //            {
-     //              "label": "Strict vegan",
-     //              "value": "vegan"
-     //            },
-     //            {
-     //              "label": "Kosher",
-     //              "value": "kosher"
-     //            },
-     //            {
-     //              "label": "Just put it in a burrito",
-     //              "value": "burrito"
-     //            } 
-     //      ]
-     //    },
-     //    {
-     //      "label": "Bug ticket",
-     //      "name": "ticket_list",
-     //      "type": "select",
-     //      "data_source": "external"
-     //    }
-     //            ]).notifyOnCancel(true).state('foo').asObject());
-
     await bot.replyInteractive(message,{
             blocks: [
-                {
-                    "type": "divider"
-                },
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
                         "text": "Hello, I am here to help you build stuff! \n*Please select a user:*"
                     }
-                },
-                {
-                    "type": "divider"
                 },
                 {
                     "type": "actions",
