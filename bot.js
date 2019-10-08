@@ -321,7 +321,7 @@ async function onBuildStarted(body)
 
 async function getShareId(buildData)
 {
-    var res = await fetch(getShareURL(buildData), {
+    var res = await fetch(getShareIdURL(buildData), {
       method: 'get',
       headers: unityHeaders
     });
