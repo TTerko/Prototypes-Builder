@@ -408,41 +408,41 @@ async function onBuildFailed(body)
 async function say(message)
 {
     console.log("saying to: " + slackUrl);
-    console.log(req);
+    
     var req = {
-      method: 'POST',
-      headers: slackHeaders,
-      body: JSON.stringify({
-            "type": "modal",
-    "title": {
-        "type": "plain_text",
-        "text": "My App",
-        "emoji": true
-    },
-    "submit": {
-        "type": "plain_text",
-        "text": "Submit",
-        "emoji": true
-    },
-    "close": {
-        "type": "plain_text",
-        "text": "Cancel",
-        "emoji": true
-    },
-    "blocks": [
-        {
-            "type": "context",
-            "elements": [
+              method: 'POST',
+              headers: slackHeaders,
+              body: JSON.stringify({
+                    "type": "modal",
+            "title": {
+                "type": "plain_text",
+                "text": "My App",
+                "emoji": true
+            },
+            "submit": {
+                "type": "plain_text",
+                "text": "Submit",
+                "emoji": true
+            },
+            "close": {
+                "type": "plain_text",
+                "text": "Cancel",
+                "emoji": true
+            },
+            "blocks": [
                 {
-                    "type": "mrkdwn",
-                    "text": message
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": message
+                        }
+                    ]
                 }
             ]
-        }
-    ]
-})
+        })
     };
-
+console.log(req);
     await fetch(slackUrl, req);
 }
 
