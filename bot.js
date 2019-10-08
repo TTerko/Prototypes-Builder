@@ -363,7 +363,6 @@ async function onBuildFailed(body)
 
 async function say(message)
 {
-    console.log("saying to: " + slackUrl);
     
     var req = {
               method: 'POST',
@@ -398,14 +397,14 @@ async function say(message)
             ]
         })
     };
-console.log(req);
-    await fetch(slackUrl, req);
+    
+    await fetch(process.env.slackUrl, req);
 }
 
 async function sayDownloadApp(message)
 {
 
-    await fetch(slackUrl, {
+    await fetch(process.env.slackUrl, {
       method: 'POST',
       headers: slackHeaders,
       body: JSON.stringify({
