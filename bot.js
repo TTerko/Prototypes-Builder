@@ -270,7 +270,7 @@ controller.webserver.post('/api/unitycloud', (req, res) =>
     //   method: 'get',
     //   headers: unityHeaders
     // }).then(res => console.log(res));
-
+    res.send(`Ok.`);
 });
 
 function getBuildStatusURL(buildData)
