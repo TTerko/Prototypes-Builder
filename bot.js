@@ -114,16 +114,12 @@ controller.webserver.get('/', (req, res) => {
 //     // getInstallLink points to slack's oauth endpoint and includes clientId and scopes
 //     res.redirect(controller.adapter.getInstallLink());
 // });
-var slackUrl = "";
-
 controller.webserver.get('/install/auth', async (req, res) => {
     try {
         const results = await controller.adapter.validateOauthCode(req.query.code);
 
         console.log('FULL OAUTH DETAILS', results);
 
-        slackUrl = results.incoming_webhook.url;
-        
         // Store token by team in bot state.
         tokenCache[results.team_id] = results.bot.bot_access_token;
 
@@ -400,25 +396,13 @@ async function say(message)
         })
     };
 
-    await fetch(getSlackURL(), req);
-}
-
-function getSlackURL()
-{
-    if (slackUrl != "")
-    {
-        return slackUrl;
-    }
-    else
-    {
-        return process.env.slackUrl;
-    }
+    await fetch(process.env.slackUrl, req);
 }
 
 async function sayDownloadApp(message)
 {
 
-    await fetch(getSlackURL(), {
+    await fetch(process.env.slackUrl, {
       method: 'POST',
       headers: slackHeaders,
       body: JSON.stringify({
