@@ -103,7 +103,7 @@ controller.on('slash_command',function(bot,message)
 })
 
 
-controller.webserver.post('/', (req, res) => {
+controller.webserver.get('/', (req, res) => {
     //console.log(adapter);
     res.send(`This app is running Botkit ${ controller.version }.`);
 });
