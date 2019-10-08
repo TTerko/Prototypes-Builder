@@ -275,7 +275,7 @@ async function onBuildStarted(body)
 
     var branch = buildStatus.scmBranch;
 
-    await say(getBuildInfoPrefix(buildStatus) + " started! :building_construction:" +  + getUserNotifyTag(branch, buildStatus.platform));  
+    await say(getBuildInfoPrefix(buildStatus) + " started! :building_construction:" + getUserNotifyTag(branch, buildStatus.platform));  
 }
 
 async function getShareId(buildData)
@@ -325,7 +325,7 @@ async function onBuildSuccess(body)
      + "\n*<" + shareLink + "|Install>" + apkoripa;
     message.icon = shareDetails.links.icon.href;
     
-    await sayDownloadApp(message + getUserNotifyTag(branch, buildStatus.platform), shareDetails.links.download_primary.href, shareLink,);  
+    await sayDownloadApp(message + getUserNotifyTag(branch, buildStatus.platform), shareDetails.links.download_primary.href, shareLink);  
 }
 
 
