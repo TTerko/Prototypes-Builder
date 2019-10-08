@@ -111,10 +111,10 @@ controller.webserver.get('/', (req, res) => {
 
 
 
-controller.webserver.get('/install', (req, res) => {
-    // getInstallLink points to slack's oauth endpoint and includes clientId and scopes
-    res.redirect(controller.adapter.getInstallLink());
-});
+// controller.webserver.get('/install', (req, res) => {
+//     // getInstallLink points to slack's oauth endpoint and includes clientId and scopes
+//     res.redirect(controller.adapter.getInstallLink());
+// });
 
 controller.webserver.get('/install/auth', async (req, res) => {
     try {
@@ -176,50 +176,6 @@ async function getBotUserByTeam(teamId) {
 
 
 //=======UNITY CLOUD
-
-
-
-var payload = 
-    {
-    "type": "modal",
-    "title": {
-        "type": "plain_text",
-        "text": "My App",
-        "emoji": true
-    },
-    "submit": {
-        "type": "plain_text",
-        "text": "Submit",
-        "emoji": true
-    },
-    "close": {
-        "type": "plain_text",
-        "text": "Cancel",
-        "emoji": true
-    },
-    "blocks": [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "Select whose game do you want to build"
-            }
-        },
-        {
-            "type": "actions",
-            "elements": [
-                {
-                    "type": "users_select",
-                    "placeholder": {
-                        "type": "plain_text",
-                        "text": "Select a user",
-                        "emoji": true
-                    }
-                }
-            ]
-        }
-    ]
-};
 
 // get details on shared build (links.icon.href links.download_primary.href)
 // https://build-api.cloud.unity3d.com/api/v1/shares/{shareid}
