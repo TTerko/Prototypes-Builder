@@ -166,7 +166,7 @@ function getRunningBuildsBlock(runningBuilds)
 {
 	var blocks = [];
 
-	blocks.push(getDivider());
+	blocks.push(getTextSection("*Running: *"));
 	
 	if (runningBuilds.length == 0)
 	{
@@ -191,7 +191,7 @@ function getQueuedBuildsBlock(runningBuilds, queuedBuilds)
 {
 	var blocks = [];
 
-	blocks.push(getDivider());
+	blocks.push(getTextSection("*Queued: *"));
 	
 	if (queuedBuilds.length == 0)
 	{
@@ -200,7 +200,7 @@ function getQueuedBuildsBlock(runningBuilds, queuedBuilds)
 
 	for(var i = 0; i < queuedBuilds.length; i++)
 	{
-		blocks.push(getQueuedBuildLine(i + 1, queuedBuilds[i]));
+		blocks.push(getQueuedBuildLine(runningBuilds.length + i + 1, queuedBuilds[i]));
 	}
 
 	return blocks;
@@ -252,9 +252,10 @@ async function selectUser(bot, message, runningBuilds, queuedBuilds)
 function getBuildStatusBlocks(runningBuilds, queuedBuilds)
 {
 	var blocks = [];
-	blocks.push(getDivider());
-	blocks.push(getBuildStatusTopBlock(runningBuilds));
+	// blocks.push(getDivider());
+	// blocks.push(getBuildStatusTopBlock(runningBuilds));
 
+	blocks.push(getDivider());
 	blocks = blocks.concat(getRunningBuildsBlock(runningBuilds));
 	blocks.push(getDivider());
 	blocks = blocks.concat(getQueuedBuildsBlock(runningBuilds, queuedBuilds));
@@ -320,7 +321,7 @@ async function onButtonSelected(bot, message)
 	}
 	else if (message.actions[0].value == "addNewBuild")
 	{
-		await startUserSelection(bot, message);
+		await userSelectionMenu(bot, message);
 	}
 	else
 	{
@@ -522,6 +523,11 @@ function getMinutesRunningForBuild(build)
 	var dateNow = new Date();
 	minutes = Math.ceil(((dateNow - unixTimeZero)/1000)/60);	
 
+	if (Number.isNaN(minutes))
+	{
+		minutes = 0;
+	}
+
 	return minutes;
 }
 
@@ -640,15 +646,15 @@ async function getPlatformButtonText(bot, message, branch, platform, readablePla
 {
 	var isInQueue = await CheckIfPlatformIsAlreadyInQueue(bot, message, branch, platform);
 	var runState = await GetRunningTimeForPlatfom(bot, message, branch, platform);
-	var buttonText = ":" + readablePlatform + ":";
+	var buttonText = readablePlatform + ":" + readablePlatform + ":";
 
 	if (isInQueue == true)
 	{
-		buttonText = ":" + readablePlatform + ": (Already queued)";
+		buttonText = readablePlatform + ":" + readablePlatform + ": (Already queued)";
 	}
 	if (runState.isRunning == true)
 	{
-		buttonText = ":" + readablePlatform + ": (Started " + runState.time + "min ago)";
+		buttonText = readablePlatform + ":" + readablePlatform + ": (Started " + runState.time + "min ago)";
 	}
 
 	return buttonText;
@@ -742,7 +748,7 @@ async function ReplyInteractiveBlocks(bot, message, blocksArray)
 		});
 }
 
-async function startUserSelection(bot, message)
+async function userSelectionMenu(bot, message)
 {
    	var runningBuilds = await GetRunningBuilds();
    	var queuedBuilds = await GetQueuedBuilds();
