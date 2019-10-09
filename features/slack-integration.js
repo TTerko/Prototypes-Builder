@@ -323,7 +323,7 @@ function getQueuedBuildsBlock(runningBuilds, queuedBuilds)
 	for(var i = queuedBuilds.length - 1; i >= 0; i--)
 	{
 		counter++;
-		blocks.push(getQueuedBuildLine(runningBuilds.length + counter, queuedBuilds[i]));
+		blocks.push(getQueuedBuildLine(counter, queuedBuilds[i]));
 	}
 
 	return blocks;
