@@ -766,9 +766,36 @@ async function startMenu(bot, message)
 
 	blocks = blocks.concat(getBuildStatusButtons());
 
-   	blocks = {blocks: blocks}
+   	var block = {blocks: blocks}
 
-	await bot.replyInteractive(message, blocks);
+   	await showMenu(bot, message, block);
+	// await bot.replyInteractive(message, block);
+}
+
+async function showMenu(bot, message, block)
+{
+	var title =  {
+                "type": "plain_text",
+                "text": "Prototypes Builder",
+                "emoji": true
+            };
+    var submit = {
+                "type": "plain_text",
+                "text": "Submit",
+                "emoji": true
+            };
+    var close = {
+                "type": "plain_text",
+                "text": "Cancel",
+                "emoji": true
+            };
+
+	block.type = "modal";
+	block.title = title;
+	block.submit = submit;
+	block.close = close;
+
+	await bot.replyWithDialog(bot, message, block);
 }
 
 module.exports = function(controller) {
