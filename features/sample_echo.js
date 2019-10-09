@@ -5,6 +5,7 @@
 
 const request = require("request");
 const fetch = require('node-fetch');	
+slackHeaders = { 'Content-type' : 'application/json' };
 var botFile = require('../bot.js');
 
 headers = { "Content-type" : "application/json",
