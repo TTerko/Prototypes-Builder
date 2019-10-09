@@ -39,6 +39,7 @@ module.exports = {
 	onUserSelected: async function(ack, body, context)
 	{
 		await openLoadingMenu(body, context, "Loading user ");
+			
 
 		var user = body.actions[0].selected_user;
 
@@ -60,15 +61,13 @@ module.exports = {
 	onCreateBuildClick: async function(ack, body, context, platform)
 	{
 		var value = JSON.parse(body.actions[0].value);
-		console.log(value);
-
+		
 		var user = value.user;
 		var branch = value.branch;
-		console.log(value.user);
 
 		await openLoadingMenu(body, context, "Starting building! ");
 
-		await StartBuild(user, branch, platform);
+		await StartBuild(user, branch, platform, body.user.id);
 		await reOpenStartMenu(body, context, true);
 	},
 
@@ -384,9 +383,7 @@ async function getBuildStatusBlocks()
 
 async function GetSelectBranchesBlock(user)
 {
-	console.log(user);
 	url = GetRepoURL(user);
-	console.log(url);
 
 	if (url != null)
 	{
@@ -650,30 +647,28 @@ async function CancelBuild(build)
 	await fetch(GetCancelBuildURL(build.projectId, build.buildtargetid, build.build), { method: 'DELETE', headers: headers});
 }
 
-async function TryRunningBuild(user, branch, platform)
+async function TryRunningBuild(user, branch, platform, launchUser)
 {
-	await CancelRunningBuilds(branch, platform);
+	//await CancelRunningBuilds(branch, platform);
 
 	//var displayName = await getDisplayName(process.env.botToken, message.user);
 
-	botFile.buildUserCache[branch + platform] = user;
+	botFile.buildUserCache[branch + platform] = launchUser;
 
-	console.log(branch);
 	await InitiateBuild(user, branch, platform);	
 }
 
-async function StartBuild(user, branch, platform)
+async function StartBuild(user, branch, platform, launchUser)
 {
-	console.log(branch);
 	if (platform == "both")
 	{
-		await TryRunningBuild(user, branch, "ios");
+		await TryRunningBuild(user, branch, "ios", launchUser);
 
-		await TryRunningBuild(user, branch, "android");
+		await TryRunningBuild(user, branch, "android", launchUser);
 	}
 	else
 	{
-		await TryRunningBuild(user, branch, platform);	
+		await TryRunningBuild(user, branch, platform, launchUser);	
 	}
 }
 
