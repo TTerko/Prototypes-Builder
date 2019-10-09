@@ -296,6 +296,7 @@ function getRunningBuildsBlock(runningBuilds)
 	var counter = 1;
 	for(var i = runningBuilds.length - 1; i >= 0; i--)
 	{
+		counter++;
 		blocks.push(getRuningBuildLine(counter, runningBuilds[i]));
 	}
 
@@ -318,7 +319,7 @@ function getQueuedBuildsBlock(runningBuilds, queuedBuilds)
 		blocks.push(getTextSection("The queue is empty"));
 	}
 
-	var counter = 1;
+	var counter = runningBuilds.length + 1;
 	for(var i = queuedBuilds.length - 1; i >= 0; i--)
 	{
 		counter++;
