@@ -562,9 +562,9 @@ async function TryRunningBuild(bot, message, user, branch, platform)
 {
 	await CancelRunningBuilds(bot, message, branch, platform);
 
-	var displayName = await getDisplayName(process.env.botToken, message.user);
+	//var displayName = await getDisplayName(process.env.botToken, message.user);
 
-	botFile.buildUserCache[branch + platform] = displayName;
+	botFile.buildUserCache[branch + platform] = message.user;
 
 	await InitiateBuild(bot, message, user, branch, platform);	
 }
