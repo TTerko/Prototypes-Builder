@@ -34,6 +34,18 @@ slackIntegration.init(app);
     await app.start(process.env.PORT || 3000);    
 })();
 
+app.command('/build', ({ ack, payload, context }) => {
+    // Acknowledge the command request
+    ack();
+
+    try {
+        slackIntegration.open(ack, payload, context);
+    }
+    catch (error) {
+        console.error(error);
+    }
+});
+
 app.command('/testbuild', ({ ack, payload, context }) => {
     // Acknowledge the command request
     ack();
