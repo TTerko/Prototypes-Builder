@@ -6,15 +6,127 @@
 const request = require("request");
 const fetch = require('node-fetch');	
 const { WebClient } = require('@slack/web-api');
+var botFile = require('../bot.js');
+var app = {};
+
 const web = new WebClient(process.env.botToken);
 
 slackHeaders = { 'Content-type' : 'application/json' ,
 		'Authorization': 'Bearer xoxb-155157046448-778754667713-JrVbKjyS8mFMGxmZ1hCToLs2'};
 
-var botFile = require('../bot.js');
 
 headers = { "Content-type" : "application/json",
 	'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
+
+
+module.exports = {
+	init: function (botApp)
+	{
+		app = botApp;
+	},
+
+	open: async function (ack, payload, context)
+	{
+		await openStartMenu(payload, context);
+	},
+
+	onAddNewBuildClick: async function(ack, body, context)
+	{
+		await openLoadingMenu(body, context, "Adding new build ");
+		await openUserSelectionMenu(body, context);
+	},
+
+	onUserSelected: async function(ack, body, context)
+	{
+		await openLoadingMenu(body, context, "Loading user ");
+
+		var user = body.actions[0].selected_user;
+
+		await openBranchSelectionMenu(body.view.id, context.botToken, user);
+	},
+
+	onBranchSelected: async function(ack, body, context)
+	{
+		await openLoadingMenu(body, context, "Preparing branch ");
+
+		var value =  JSON.parse(body.actions[0].selected_option.value);
+
+		var user = value.user;
+		var branch = value.branch;
+		
+		await openPlatformSelectionMenu(body.view.id, context.botToken, user, branch);
+	},
+
+	onCreateBuildClick: async function(ack, body, context, platform)
+	{
+		var value = JSON.parse(body.actions[0].value);
+		console.log(value);
+
+		var user = value.user;
+		var branch = value.branch;
+		console.log(value.user);
+
+		await openLoadingMenu(body, context, "Starting building! ");
+
+		await StartBuild(user, branch, platform);
+		await reOpenStartMenu(body, context, true);
+	},
+
+	onCancelBuildClick: async function(ack, body, context)
+	{
+		var value = JSON.parse(body.actions[0].value);
+
+		await openLoadingMenu(body, context, "Removing build ");
+		await CancelBuild(value.build);
+		await reloadView(body, context);
+	}
+  //   controller.hears('sample','message,direct_message', async(bot, message) => {
+  //       await bot.reply(message, 'I heard a sample message.');
+  //   });
+
+  //   controller.on('message,direct_message', async(bot, message) => 
+  //   {
+  //   	console.log("click");
+		// if (message.actions.length > 0)
+		// {
+		// 	if (message.actions[0].type == 'users_select') 
+		// 	{
+		// 		await onUserSelected(bot, message);
+		// 	}
+		// 	else if (message.actions[0].type == 'static_select')
+		// 	{
+		// 		await onBranchSelected(bot, message);
+		// 	}
+		// 	else if (message.actions[0].type == "button")
+		// 	{
+		// 		await onButtonSelected(bot, message);
+		// 	}
+		// }
+  //   });
+
+}
+
+async function reloadView(body, context)
+{
+	var stateValues = JSON.parse(body.view.private_metadata).values;
+
+	if (stateValues.menu == "start")
+	{
+		await reOpenStartMenu(body, context, false);
+	}
+	else if (stateValues.menu == "userSelection")
+	{
+		await openUserSelectionMenu(body, context);
+	}
+	else if (stateValues.menu == "branchSelection")
+	{
+		await openBranchSelectionMenu(body.view.id, context.botToken, stateValues.user);
+	}
+	else if (stateValues.menu == "platformSelection")
+	{
+		await openPlatformSelectionMenu(body.view.id, context.botToken, stateValues.user, stateValues.branch);
+	}
+}
 
 function getBuildStatusTopBlock(runningBuilds)
 {
@@ -143,7 +255,8 @@ function getBuildStatusButtons()
 						"text": "Add new build",
 						"emoji": true
 					},
-					"value": "addNewBuild",
+					"action_id": "add_new_build",
+					"value": "asd",
 					"style": "primary"
 				},
                 getQuitButton()
@@ -212,50 +325,7 @@ function getQueuedBuildsBlock(runningBuilds, queuedBuilds)
 	return blocks;
 }
 
-async function getBlocksWithBuildStatus(blocks)
-{
-   	var runningBuilds = await GetRunningBuilds();
-   	var queuedBuilds = await GetQueuedBuilds();
-
-	blocks = getBuildStatusBlocks(runningBuilds, queuedBuilds).concat(blocks);
-
-	return blocks;
-}
-
-async function selectUser(bot, message, runningBuilds, queuedBuilds)
-{
-	var block = {
-            blocks: [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "*Please select a user*:"
-                    }
-                },
-                {
-                    "type": "actions",
-                    "elements": [
-                        {
-                            "type": "users_select",
-                            "placeholder": {
-                                "type": "plain_text",
-                                "text": "Select a user",
-                                "emoji": true
-                            }
-                        },
-		                getQuitButton()
-                    ]
-                },
-            ]
-        } ; 
-
-  	block.blocks = getBuildStatusBlocks(runningBuilds, queuedBuilds).concat(block.blocks);
-	console.log(block);
-    await bot.replyInteractive(message, block);
-}
-
-function getBuildStatusBlocks(runningBuilds, queuedBuilds)
+function getBuildStatusBlocksWithBuilds(runningBuilds, queuedBuilds)
 {
 	var blocks = [];
 	// blocks.push(getDivider());
@@ -267,16 +337,52 @@ function getBuildStatusBlocks(runningBuilds, queuedBuilds)
 	blocks = blocks.concat(getQueuedBuildsBlock(runningBuilds, queuedBuilds));
    	blocks.push(getDivider());
 	
-	
 	return blocks;
 }
 
-async function onUserSelected(bot, message)
+function getUserSelectionBlocks()
 {
-	var user = message.actions[0].selected_user;
-	url = GetRepoURL(user);
+    var blocks = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Please select a user*:"
+            }
+        },
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "users_select",
+                    "action_id": "user_selected",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "Select a user",
+                        "emoji": true
+                    }
+                }
+            ]
+        }
+    ];
 
-	var error = null;
+    return blocks;
+}
+
+
+async function getBuildStatusBlocks()
+{
+   	var runningBuilds = await GetRunningBuilds();
+   	var queuedBuilds = await GetQueuedBuilds();
+
+   	return getBuildStatusBlocksWithBuilds(runningBuilds, queuedBuilds);
+}
+
+async function GetSelectBranchesBlock(user)
+{
+	console.log(user);
+	url = GetRepoURL(user);
+	console.log(url);
 
 	if (url != null)
 	{
@@ -287,37 +393,19 @@ async function onUserSelected(bot, message)
 		{
 			error = branches.message;
 		}
-		await bot.replyInteractive(message, await GetBranchesBlocks(branches, user));
+		return FormBranchesBlocks(branches, user);
+
 		// LogBranches(branches);
 	}
 	else
 	{
 		error = "user doesn't have any games";
+		return [];
 	}
 
-	if (error)
-	{
-		await bot.replyInteractive(message, error);
-	}
 }
 
-async function onBranchSelected(bot, message)
-{
-	var error = null;
-	var value =  JSON.parse(message.actions[0].selected_option.value);
 
-	var user = value.user;
-	var branch = value.branch;
-
-	const result = await SelectPlatform(bot, message, user, branch);
-
-	// await bot.replyEphemeral(message, result);
-	
-	if (error)
-	{
-		await bot.replyInteractive(message, error);
-	}
-}
 
 async function onButtonSelected(bot, message)
 {
@@ -363,43 +451,39 @@ function GetRepoURL(user)
 	return 'https://gitlab.com/api/v4/projects/' + gitlabRepos[user] + '/repository/branches?private_token=jdtk93Az_2x3XupkrkH_';
 }
 
-async function GetBranchesBlocks(branches, user)
+function FormBranchesBlocks(branches, user)
 {
-	var blocks = 
-	{
-		"blocks": [
-		{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "Please, select a *branch:*"
-			}
-		},
-		{
-			"type": "actions",
-			"elements": [
-				{
-					"type": "static_select",
-					"placeholder": {
-						"type": "plain_text",
-						"text": "Select an item",
-						"emoji": true
+	var blocks = [
+					{
+						"type": "section",
+						"text": {
+							"type": "mrkdwn",
+							"text": "Please, select a *branch:*"
+						}
 					},
-					"options": [
-					]
-				},
-				getQuitButton()
-			]
-		}
-		]	
-	}	
+					{
+						"type": "actions",
+						"elements": [
+							{
+								"type": "static_select",
+								"action_id": "branch_selected",
+								"placeholder": {
+									"type": "plain_text",
+									"text": "Select a branch",
+									"emoji": true
+								},
+								"options": [
+								]
+							}
+						]
+					}
+				];
+
 
 	for(var i = 0; i < branches.length; i++)
   	{
-  		blocks.blocks[1].elements[0].options.push(addBranchOption(branches[i].name, user));
+  		blocks[1].elements[0].options.push(addBranchOption(branches[i].name, user));
   	}
-
-  	blocks.blocks = await getBlocksWithBuildStatus(blocks.blocks);
 
   	return blocks;
 }
@@ -505,19 +589,15 @@ async function GetQueuedBuilds()
 	return queuedBuilds;
 }
 
-async function CheckIfPlatformIsAlreadyInQueue(bot, message, branch, platform)
+function CheckIfPlatformIsAlreadyInQueue(branch, platform, queuedBuilds)
 {
-	queuedBuilds = await GetQueuedBuilds();
-
 	var sameQueuedBuilds = FilterSameBranchAndPlatformForBuilds(queuedBuilds, branch, platform);
 
 	return sameQueuedBuilds.length > 0;
 }
 
-async function GetSameRunningBuilds(bot, message, branch, platform)
+function GetSameRunningBuilds(branch, platform, runningBuilds)
 {
-	var runningBuilds = await GetRunningBuilds();
-
 	var sameRunningBuilds = FilterSameBranchAndPlatformForBuilds(runningBuilds, branch, platform);
 
 	return sameRunningBuilds;
@@ -537,9 +617,9 @@ function getMinutesRunningForBuild(build)
 	return minutes;
 }
 
-async function GetRunningTimeForPlatfom(bot, message, branch, platform)
+function GetRunningTimeForPlatfom(branch, platform, runningBuilds)
 {
-	var sameRunningBuilds = await GetSameRunningBuilds(bot, message, branch, platform);
+	var sameRunningBuilds = GetSameRunningBuilds(branch, platform, runningBuilds);
 	var minutes = 0;
 	if (sameRunningBuilds.length > 0)
 	{
@@ -549,9 +629,11 @@ async function GetRunningTimeForPlatfom(bot, message, branch, platform)
 	return {isRunning : sameRunningBuilds.length > 0, time : minutes};
 }
 
-async function CancelRunningBuilds(bot, message, branch, platform)
+async function CancelRunningBuilds(branch, platform, runningBuilds)
 {
-	var sameRunningBuilds = await GetSameRunningBuilds(bot, message, branch, platform);
+	var runningBuilds = GetRunningBuilds();
+
+	var sameRunningBuilds = GetSameRunningBuilds(branch, platform, runningBuilds);
 
 	for(var i = 0; i < sameRunningBuilds.length; i++)
 	{
@@ -564,34 +646,30 @@ async function CancelBuild(build)
 	await fetch(GetCancelBuildURL(build.projectId, build.buildtargetid, build.build), { method: 'DELETE', headers: headers});
 }
 
-async function TryRunningBuild(bot, message, user, branch, platform)
+async function TryRunningBuild(user, branch, platform)
 {
-	await CancelRunningBuilds(bot, message, branch, platform);
+	await CancelRunningBuilds(branch, platform);
 
 	//var displayName = await getDisplayName(process.env.botToken, message.user);
 
-	botFile.buildUserCache[branch + platform] = message.user;
+	botFile.buildUserCache[branch + platform] = user;
 
-	await InitiateBuild(bot, message, user, branch, platform);	
+	console.log(branch);
+	await InitiateBuild(user, branch, platform);	
 }
 
-async function UpdateBuildTarget(bot, message, state)
+async function StartBuild(user, branch, platform)
 {
-	var user = state.user;
-	var branch = state.branch;
-	var platform = state.platform;
-
+	console.log(branch);
 	if (platform == "both")
 	{
-		state.platform = "ios";
-		await TryRunningBuild(bot, message, user, branch, state.platform);
+		await TryRunningBuild(user, branch, "ios");
 
-		state.platform = "android";
-		await TryRunningBuild(bot, message, user, branch, state.platform);
+		await TryRunningBuild(user, branch, "android");
 	}
 	else
 	{
-		await TryRunningBuild(bot, message, user, branch, platform);	
+		await TryRunningBuild(user, branch, platform);	
 	}
 }
 
@@ -611,7 +689,7 @@ function getUserURL(token, user)
 	return "https://slack.com/api/users.info?token=" + token + "&user=" + user;
 }
 
-async function InitiateBuild(bot, message, user, branch, platform)
+async function InitiateBuild(user, branch, platform)
 {
 	var body = {};
 	body.settings = {};
@@ -634,24 +712,22 @@ async function InitiateBuild(bot, message, user, branch, platform)
 	{
 		bundleIdCompanyName = "studio501";
 	}
+	console.log(branch);
 
-	body.settings.platform.bundleId = "com." + bundleIdCompanyName + "." + branch.replace(/[^a-zA-Z ]/g, "")+ postfix;
+	body.settings.platform.bundleId = "com." + bundleIdCompanyName + "." + branch.replace(/[^a-zA-Z ]/g, "") + postfix;
 
 	await fetch(GetCloudBuildTargetURL(user, platform), { method: 'PUT', headers: headers, body:  JSON.stringify(body)});
 
 	console.log(GetStartBuildURL(user, platform));
 
 	await fetch(GetStartBuildURL(user, platform), { method: 'POST', headers: headers});
-
-
-	//await bot.replyInteractive(message, "*[" + platform + "] (" + branch + ")* build is initiated");	
-	await startMenu(bot, message);	
 }
 
-async function getPlatformButtonText(bot, message, branch, platform, readablePlatform)
+function getPlatformButtonText(branch, platform, readablePlatform, builds)
 {
-	var isInQueue = await CheckIfPlatformIsAlreadyInQueue(bot, message, branch, platform);
-	var runState = await GetRunningTimeForPlatfom(bot, message, branch, platform);
+	var isInQueue = CheckIfPlatformIsAlreadyInQueue(branch, platform, builds.queued);
+	var runState = GetRunningTimeForPlatfom(branch, platform, builds.running);
+
 	var buttonText = readablePlatform + ":" + readablePlatform + ":";
 
 	if (isInQueue == true)
@@ -666,10 +742,10 @@ async function getPlatformButtonText(bot, message, branch, platform, readablePla
 	return buttonText;
 }
 
-async function GetPlatformSelectionBlocks(bot, message, user, branch)
+function GetPlatformSelectionBlocks(user, branch, builds)
 {
-	var iosButtonText = await getPlatformButtonText(bot, message, branch, "ios", "iOS");
-	var androidButtonText = await getPlatformButtonText(bot, message, branch, "android", "Android");
+	var iosButtonText =  getPlatformButtonText(branch, "ios", "iOS", builds);
+	var androidButtonText =  getPlatformButtonText(branch, "android", "Android", builds);
 
 	var iosValue = {};
 	iosValue.user = user;
@@ -685,57 +761,55 @@ async function GetPlatformSelectionBlocks(bot, message, user, branch)
 	bothValue.user = user;
 	bothValue.branch = branch;
 	bothValue.platform = "both";
+	var blocks = [];
 
-	return {blocks: [
-	{
-		"type": "actions",
-		"elements": [
-			{
-				"type": "button",
-				"text": {
-					"type": "plain_text",
-					"emoji": true,
-					"text": iosButtonText
-				},
-				"style": "primary",
-				"value": JSON.stringify(iosValue)
-			},
-			{
-				"type": "button",
-				"text": {
-					"type": "plain_text",
-					"emoji": true,
-					"text": androidButtonText
-				},
-				"style": "primary",
-				"value": JSON.stringify(androidValue)
-			},
-			{
-				"type": "button",
-				"text": {
-					"type": "plain_text",
-					"emoji": true,
-					"text": "Both :ios:/:android:"
-				},
-				"style": "primary",
-				"value": JSON.stringify(bothValue)
-			},
-			getQuitButton()
-		]
-	}
-]};
+	blocks.push(getTextSection("*" + branch + ": *"));
+	blocks = blocks.concat([
+					{
+						"type": "actions",
+						"elements": [
+							{
+								"type": "button",
+								"text": {
+									"type": "plain_text",
+									"emoji": true,
+									"text": iosButtonText
+								},
+								"action_id": "create_build_ios",
+								"style": "primary",
+								"value": JSON.stringify(iosValue)
+							},
+							{
+								"type": "button",
+								"text": {
+									"type": "plain_text",
+									"emoji": true,
+									"text": androidButtonText
+								},
+								"action_id": "create_build_android",
+								"style": "primary",
+								"value": JSON.stringify(androidValue)
+							},
+							{
+								"type": "button",
+								"text": {
+									"type": "plain_text",
+									"emoji": true,
+									"text": "Both :ios:/:android:"
+								},
+								"action_id": "create_build_both",
+								"style": "primary",
+								"value": JSON.stringify(bothValue)
+							}
+						]
+					}
+				]);
+
+	return blocks;
 }
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function SelectPlatform(bot, message, user, branch)
-{
-	var block = await GetPlatformSelectionBlocks(bot, message, user, branch);
-
-	block.blocks = await getBlocksWithBuildStatus(block.blocks);
-
-	await bot.replyInteractive(message, block);
 }
 
 async function ReplyInteractiveBlocks(bot, message, blocksArray)
@@ -754,36 +828,107 @@ async function ReplyInteractiveBlocks(bot, message, blocksArray)
 		});
 }
 
-async function userSelectionMenu(bot, message)
-{
-   	var runningBuilds = await GetRunningBuilds();
-   	var queuedBuilds = await GetQueuedBuilds();
-
-	await selectUser(bot, message, runningBuilds, queuedBuilds);
-}
-
-async function startMenu(bot, message)
-{
+async function openPlatformSelectionMenu(viewId, token, user, branch)
+{   	
 	var runningBuilds = await GetRunningBuilds();
    	var queuedBuilds = await GetQueuedBuilds();
 
-   	var blocks =  getBuildStatusBlocks(runningBuilds, queuedBuilds);
+   	var builds = 
+   	{
+   		running : runningBuilds,
+   		queued : queuedBuilds
+   	};
 
-	blocks = blocks.concat(getBuildStatusButtons());
+   	var buildStatusBlocks = getBuildStatusBlocksWithBuilds(runningBuilds, queuedBuilds);
+	
+   	blocks = buildStatusBlocks.concat(GetPlatformSelectionBlocks(user, branch, builds));
+   	
+   	var block = {blocks: blocks}
+
+	var state = { values : {menu : "branchSelection", user : user, branch : branch, buildStatusBlocks: buildStatusBlocks}};
+
+   	await updateMenu(viewId, token, block, state);
+}
+
+async function openLoadingMenu(body, context, text)
+{
+	var stateValues = JSON.parse(body.view.private_metadata).values;
+
+	var blocks = stateValues.buildStatusBlocks;
+	
+   	blocks.push(getTextSection(text + ":loading_wheel:"));
+   	
+   	var block = {blocks: blocks}
+
+	var state = body.view.private_metadata;
+
+   	await updateMenu(body.view.id, context.botToken, block, state);
+}
+
+async function openBranchSelectionMenu(viewId, token, user)
+{
+   	var buildStatusBlocks = await getBuildStatusBlocks();
+	
+   	blocks = buildStatusBlocks.concat(await GetSelectBranchesBlock(user));
+   	
+   	var block = {blocks: blocks}
+
+	var state = { values : {menu : "branchSelection", user : user, buildStatusBlocks: buildStatusBlocks}};
+
+   	await updateMenu(viewId, token, block, state);
+}
+
+async function openUserSelectionMenu(body, context)
+{
+   	var buildStatusBlocks = await getBuildStatusBlocks();
+   	blocks = buildStatusBlocks.concat(getUserSelectionBlocks());
+   	
+   	var block = {blocks: blocks}
+	var state = { values : {menu : "userSelection", buildStatusBlocks: buildStatusBlocks}};
+
+   	await updateMenu(body.view.id, context.botToken, block, state);
+}
+
+async function reOpenStartMenu(body, context, showSuccess)
+{
+	var blocks = [];
+   	var buildStatusBlocks = await getBuildStatusBlocks();
+   	blocks = blocks.concat(buildStatusBlocks);
+
+   	if (showSuccess == true)
+	{
+		blocks.push(getTextSection("Success! :check:"));
+	}
+
+	blocks = blocks.concat(getUserSelectionBlocks());
 
    	var block = {blocks: blocks}
 
-   	await showMenu(bot, message, block);
-	// await bot.replyInteractive(message, block);
+	var state = { values : {menu : "start", buildStatusBlocks: buildStatusBlocks}};
+
+   	await updateMenu(body.view.id, context.botToken, block, state);
 }
 
-async function showMenu(bot, message, block)
+async function openStartMenu(payload, context)
+{
+   	var buildStatusBlocks = await getBuildStatusBlocks();
+
+	blocks = buildStatusBlocks.concat(getUserSelectionBlocks());
+
+   	var block = {blocks: blocks}
+
+	var state = { values : {menu : "start", buildStatusBlocks: buildStatusBlocks}};
+
+   	await openMenu(payload.trigger_id, context.botToken, block, state);
+}
+
+function createViewFromBlock(block)
 {
 	var title =  {
-                "type": "plain_text",
-                "text": "Prototypes Builder",
-                "emoji": true
-            };
+            "type": "plain_text",
+            "text": "Prototypes Builder",
+            "emoji": true
+        };
 
     var submit = {
                 "type": "plain_text",
@@ -799,54 +944,32 @@ async function showMenu(bot, message, block)
 
 	block.type = "modal";
 	block.title = title;
-	// block.submit = submit;
 	block.close = close;
 
+	return block;
+}
 
-    var res = await web.views.open({
-	    trigger_id: message.trigger_id,
-	    view: block
+async function updateMenu(viewId, token, block, state)
+{
+	var view = createViewFromBlock(block);
+	view.private_metadata = JSON.stringify(state);
+
+    var res = await app.client.views.update({
+	    token: token,
+	    view_id: viewId,
+	    view: view
   	});
-
-   // var res = await fetch("https://api.slack.com/methods/dialog.open", req);
-     console.log(res);
-
-	//await bot.replyWithDialog(bot, message, block);
 }
 
-module.exports = function(controller) {
+async function openMenu(trigger_id, token, block, state)
+{
+	var view =  createViewFromBlock(block);
+	view.private_metadata = JSON.stringify(state);
 
-	controller.on('slash_command', async(bot, message) => {
-	   await startMenu(bot, message);
-
-	   	//await ReplyInteractiveBlocks(bot, message, blocks);
-	    // 
-	});
-
-    controller.hears('sample','message,direct_message', async(bot, message) => {
-        await bot.reply(message, 'I heard a sample message.');
-    });
-
-    controller.on('message,direct_message', async(bot, message) => 
-    {
-    	console.log("click");
-		if (message.actions.length > 0)
-		{
-			if (message.actions[0].type == 'users_select') 
-			{
-				await onUserSelected(bot, message);
-			}
-			else if (message.actions[0].type == 'static_select')
-			{
-				await onBranchSelected(bot, message);
-			}
-			else if (message.actions[0].type == "button")
-			{
-				await onButtonSelected(bot, message);
-			}
-		}
-    });
-
+    var res = await app.client.views.open({
+	    trigger_id: trigger_id,
+	    token: token,
+	    view: view
+  	});
 }
-
 
