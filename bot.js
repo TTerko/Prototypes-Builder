@@ -435,7 +435,7 @@ async function sayDownloadApp(message, downloadLink, installLink)
             "type": "modal",
             "title": {
                 "type": "plain_text",
-                "text": "My App",
+                "text": "Prototypes Builder",
                 "emoji": true
             },
             "submit": {
