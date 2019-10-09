@@ -284,7 +284,7 @@ async function onBuildSuccess(body)
     message.text = getBuildInfoPrefix(buildStatus) + " successfuly finished! :classical_building: :checkered_flag:" + getUserNotifyTag(branch, buildStatus.platform);
     message.icon = shareDetails.links.icon.href;
     
-    await sayDownloadApp(message , shareDetails.links.download_primary.href, shareLink);  
+    await sayDownloadApp(message , shareDetails.links.download_primary.href, shareLink, buildStatus.platform);  
 }
 
 
@@ -392,7 +392,7 @@ async function say(message)
     await fetch(process.env.slackUrl, req);
 }
 
-async function sayDownloadApp(message, downloadLink, installLink)
+async function sayDownloadApp(message, downloadLink, installLink, platform)
 {
     await fetch(process.env.slackUrl, {
       method: 'POST',
@@ -437,7 +437,7 @@ async function sayDownloadApp(message, downloadLink, installLink)
                             "text": {
                                 "type": "plain_text",
                                 "emoji": true,
-                                "text": "Install"
+                                "text": "Install :" + platform ":"
                             },
                             "style": "primary",
                             "url": installLink
@@ -447,7 +447,7 @@ async function sayDownloadApp(message, downloadLink, installLink)
                             "text": {
                                 "type": "plain_text",
                                 "emoji": true,
-                                "text": "Download"
+                                "text": "Download :" + platform ":"
                             },
                             "style": "primary",
                             "url": downloadLink
