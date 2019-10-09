@@ -3,11 +3,10 @@ var express = require('express');
 const { App, ExpressReceiver } = require('@slack/bolt');
 var bodyParser = require('body-parser');
 const fetch = require("node-fetch");
+var db = require('./features/db-integration');
 var slackIntegration = require("./features/slack-integration");
 
-var buildUserCache = {};
-
-exports.buildUserCache = {};
+console.log("start");
 
 unityHeaders = { "Content-type" : "application/json",
         'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
@@ -27,7 +26,7 @@ const app = new App({
     receiver
 });
 
-slackIntegration.init(app);
+slackIntegration.init(app, db);
 
 (
     async () => {
@@ -279,9 +278,10 @@ async function onBuildSuccess(body)
     var branch = buildStatus.scmBranch;
     console.log(shareDetails);
     var shareLink = "https://developer.cloud.unity3d.com/share/share.html?shareId=" + shareId;
+    var tag = await getUserNotifyTag(branch, buildStatus.platform);
     
     var message = {};
-    message.text = getBuildInfoPrefix(buildStatus) + " successfuly finished! :classical_building: :checkered_flag:" + getUserNotifyTag(branch, buildStatus.platform);
+    message.text = getBuildInfoPrefix(buildStatus) + " successfuly finished! :classical_building: :checkered_flag:" + tag;
     message.icon = shareDetails.links.icon.href;
     
     await sayDownloadApp(message , shareDetails.links.download_primary.href, shareLink, buildStatus.platform);  
@@ -320,13 +320,15 @@ async function onBuildQueued(body)
     var buildStatus = await getBuildStatus(buildData);
 
     var branch = buildStatus.scmBranch;
-
-    await say(getBuildInfoPrefix(buildStatus) + " was put into queue :vertical_traffic_light:" + getUserNotifyTag(branch, buildStatus.platform));  
+    var tag = await getUserNotifyTag(branch, buildStatus.platform);
+    await say(getBuildInfoPrefix(buildStatus) + " was put into queue :vertical_traffic_light:" + tag);  
 }
 
-function getUserNotifyTag(branch, platform)
+async function getUserNotifyTag(branch, platform)
 {
-    return " <@" + exports.buildUserCache[branch + platform] + ">";
+    var userObject = await db.getRunner(branch + platform);
+
+    return " <@" + userObject.user + ">";
 }
 
 async function onBuildCanceled(body)
@@ -335,8 +337,9 @@ async function onBuildCanceled(body)
     var buildStatus = await getBuildStatus(buildData);
 
     var branch = buildStatus.scmBranch;
+    var tag = await getUserNotifyTag(branch, buildStatus.platform);
 
-    await say("~" + getBuildInfoPrefix(buildStatus) + " was canceled~ :heavy_multiplication_x:" + getUserNotifyTag(branch, buildStatus.platform));  
+    await say("~" + getBuildInfoPrefix(buildStatus) + " was canceled~ :heavy_multiplication_x:" + tag);  
 }
 
 async function onBuildFailed(body)
@@ -348,7 +351,8 @@ async function onBuildFailed(body)
     var log = await getLog(buildData);
     var codeLog = "\n```" + log + "```";
 
-    await say(getBuildInfoPrefix(buildStatus) + " FAILED :x:"  + getUserNotifyTag(branch, buildStatus.platform) + codeLog);  
+    var tag = await getUserNotifyTag(branch, buildStatus.platform);
+    await say(getBuildInfoPrefix(buildStatus) + " FAILED :x:"  + tag + codeLog);  
 }
 
 

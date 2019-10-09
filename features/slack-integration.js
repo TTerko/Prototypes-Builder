@@ -6,8 +6,9 @@
 const request = require("request");
 const fetch = require('node-fetch');	
 const { WebClient } = require('@slack/web-api');
-var botFile = require('../bot.js');
+// var db = require('./features/db-integration');
 var app = {};
+var db = {};
 
 const web = new WebClient(process.env.botToken);
 
@@ -20,9 +21,10 @@ headers = { "Content-type" : "application/json",
 
 
 module.exports = {
-	init: function (botApp)
+	init: function (botApp, database)
 	{
 		app = botApp;
+		db = database;
 	},
 
 	open: async function (ack, payload, context)
@@ -653,7 +655,7 @@ async function TryRunningBuild(user, branch, platform, launchUser)
 
 	//var displayName = await getDisplayName(process.env.botToken, message.user);
 
-	botFile.buildUserCache[branch + platform] = launchUser;
+	db.updateRunner(branch + platform, launchUser);
 
 	await InitiateBuild(user, branch, platform);	
 }

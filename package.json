@@ -17,6 +17,7 @@
     "dotenv": "^7.0.0",
     "epress": "0.0.1-security",
     "fetch": "^1.1.0",
+    "mongodb": "^3.3.2",
     "ngrok": "^3.2.5",
     "node-fetch": "^2.6.0",
     "request": "^2.88.0"
