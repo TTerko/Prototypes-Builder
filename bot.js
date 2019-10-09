@@ -314,7 +314,7 @@ async function onBuildSuccess(body)
     var shareLink = "https://developer.cloud.unity3d.com/share/share.html?shareId=" + shareId;
     
     var message = {};
-    message.text = getBuildInfoPrefix(buildStatus) + " successfuly finished! :classical_building: :checkered_flag:" + + getUserNotifyTag(branch, buildStatus.platform);
+    message.text = getBuildInfoPrefix(buildStatus) + " successfuly finished! :classical_building: :checkered_flag:" + getUserNotifyTag(branch, buildStatus.platform);
     message.icon = shareDetails.links.icon.href;
     
     await sayDownloadApp(message , shareDetails.links.download_primary.href, shareLink);  
