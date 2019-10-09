@@ -95,15 +95,6 @@ controller.ready(() => {
 
 });
 
-controller.on('slash_command',function(bot,message) 
-{
-    // reply to slash command
-    // bot.replyPublic(message,'Everyone can see this part of the slash command');
-    // bot.replyPrivate(message,'Only the person who used the slash command can see this.');
-
-})
-
-
 controller.webserver.get('/', (req, res) => {
     //console.log(adapter);
     res.send(`This app is running Botkit ${ controller.version }.`);
@@ -359,7 +350,7 @@ async function onBuildQueued(body)
 
 function getUserNotifyTag(branch, platform)
 {
-    return " @" + exports.buildUserCache[branch + platform];
+    return " <@" + exports.buildUserCache[branch + platform] + ">";
 }
 
 async function onBuildCanceled(body)
@@ -412,7 +403,7 @@ async function say(message)
                         {
                             "type": "context",
                             "elements": [
-                                {
+                                {http://d52b0402.ngrok.iobotbui
                                     "type": "mrkdwn",
                                     "text": message
                                 }

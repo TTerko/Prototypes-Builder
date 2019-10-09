@@ -5,7 +5,12 @@
 
 const request = require("request");
 const fetch = require('node-fetch');	
-slackHeaders = { 'Content-type' : 'application/json' };
+const { WebClient } = require('@slack/web-api');
+const web = new WebClient(process.env.botToken);
+
+slackHeaders = { 'Content-type' : 'application/json' ,
+		'Authorization': 'Bearer xoxb-155157046448-778754667713-JrVbKjyS8mFMGxmZ1hCToLs2'};
+
 var botFile = require('../bot.js');
 
 headers = { "Content-type" : "application/json",
@@ -779,11 +784,13 @@ async function showMenu(bot, message, block)
                 "text": "Prototypes Builder",
                 "emoji": true
             };
+
     var submit = {
                 "type": "plain_text",
                 "text": "Submit",
                 "emoji": true
             };
+
     var close = {
                 "type": "plain_text",
                 "text": "Cancel",
@@ -792,10 +799,19 @@ async function showMenu(bot, message, block)
 
 	block.type = "modal";
 	block.title = title;
-	block.submit = submit;
+	// block.submit = submit;
 	block.close = close;
 
-	await bot.replyWithDialog(bot, message, block);
+
+    var res = await web.views.open({
+	    trigger_id: message.trigger_id,
+	    view: block
+  	});
+
+   // var res = await fetch("https://api.slack.com/methods/dialog.open", req);
+     console.log(res);
+
+	//await bot.replyWithDialog(bot, message, block);
 }
 
 module.exports = function(controller) {
@@ -813,6 +829,7 @@ module.exports = function(controller) {
 
     controller.on('message,direct_message', async(bot, message) => 
     {
+    	console.log("click");
 		if (message.actions.length > 0)
 		{
 			if (message.actions[0].type == 'users_select') 
