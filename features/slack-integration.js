@@ -293,7 +293,7 @@ function getRunningBuildsBlock(runningBuilds)
 		blocks.push(getTextSection("2. Build slot is available"));
 	}
 
-	var counter = 1;
+	var counter = 0;
 	for(var i = runningBuilds.length - 1; i >= 0; i--)
 	{
 		counter++;
@@ -319,7 +319,7 @@ function getQueuedBuildsBlock(runningBuilds, queuedBuilds)
 		blocks.push(getTextSection("The queue is empty"));
 	}
 
-	var counter = runningBuilds.length + 1;
+	var counter = runningBuilds.length;
 	for(var i = queuedBuilds.length - 1; i >= 0; i--)
 	{
 		counter++;
