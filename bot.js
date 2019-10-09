@@ -437,7 +437,7 @@ async function sayDownloadApp(message, downloadLink, installLink, platform)
                             "text": {
                                 "type": "plain_text",
                                 "emoji": true,
-                                "text": "Install :" + platform ":"
+                                "text": "Install :" + platform + ":"
                             },
                             "style": "primary",
                             "url": installLink
@@ -447,7 +447,7 @@ async function sayDownloadApp(message, downloadLink, installLink, platform)
                             "text": {
                                 "type": "plain_text",
                                 "emoji": true,
-                                "text": "Download :" + platform ":"
+                                "text": "Download :" + platform + ":"
                             },
                             "style": "primary",
                             "url": downloadLink
