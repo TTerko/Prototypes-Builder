@@ -96,6 +96,30 @@ app.action('add_new_build', ({ ack, body, context }) => {
     }
 });
 
+app.action('builds_archive', ({ ack, body, context }) => {
+    // Acknowledge the button request
+    ack();
+
+    try {
+        const result = slackIntegration.onOpenArchiveClick(ack, body, context);
+    }
+    catch (error) {
+        console.error(error);
+    }
+});
+
+app.action('back', ({ ack, body, context }) => {
+    // Acknowledge the button request
+    ack();
+
+    try {
+        const result = slackIntegration.onBackClick(ack, body, context);
+    }
+    catch (error) {
+        console.error(error);
+    }
+});
+
 app.action('button', ({ ack, body, context }) => {
     // Acknowledge the button request
     ack();
@@ -150,11 +174,6 @@ app.action('create_build_both', ({ ack, body, context }) => {
         console.error(error);
     }
 });
-
-// server.post('/slack/events', (req, res) =>
-// {
-//     console.log("pum");
-// });
 
 server.post('/api/unitycloud', (req, res) => 
 {
@@ -283,26 +302,31 @@ async function getShareDetails(shareId)
 async function onBuildSuccess(body)
 {
     var buildData = getBuildData(body);
-    buildData.build = 84;
-    buildData.buildtargetid = "android";
 
     var extendedBuildInfo = await getMoreBuildInfo(buildData);
-
-    var branch = extendedBuildInfo.branch;
-
-    var tag = await getUserNotifyTag(extendedBuildInfo.user);
-
+    var runnerId = extendedBuildInfo.user;
+    var tag = await getUserNotifyTag(runnerId);
     var shareId = await getShareId(buildData);
-
     var shareDetails = await getShareDetails(shareId);
 
-    var shareLink = "https://developer.cloud.unity3d.com/share/share.html?shareId=" + shareId;
-    
+    var branch = extendedBuildInfo.branch;
+    var shareUrl = "https://developer.cloud.unity3d.com/share/share.html?shareId=" + shareId;
+    var iconUrl = shareDetails.links.icon.href;
+    var platform = buildData.platform;
+    var build = buildData.build;
+    var downloadUrl = shareDetails.links.download_primary.href;
+    var projectId = "prototypes-oles";
+    var buildId = projectId + branch + platform;
+
+    db.addBuild(buildId, projectId, branch, platform, runnerId, downloadUrl, shareUrl, iconUrl);
+
     var message = {};
-    message.text = getBuildInfoPrefix(extendedBuildInfo.branch, buildData.platform, buildData.build) + " successfuly finished! :classical_building: :checkered_flag:" + tag;
-    message.icon = shareDetails.links.icon.href;
+    message.text = getBuildInfoPrefix(branch, platform, build) +
+     " successfuly finished! :classical_building: :checkered_flag:" + tag;
+
+    message.icon = iconUrl;
     
-    await sayDownloadApp(message , shareDetails.links.download_primary.href, shareLink, buildData.platform);  
+    await sayDownloadApp(message, downloadUrl, shareUrl, platform);  
 }
 
 
@@ -347,7 +371,7 @@ async function onBuildQueued(body)
     var branch = extendedBuildInfo.branch;
 
     var tag = await getUserNotifyTag(extendedBuildInfo.user);
-
+        
     await say(getBuildInfoPrefix(extendedBuildInfo.branch, buildData.platform, buildData.build) +
      " was put into queue :vertical_traffic_light:" + tag);  
 }

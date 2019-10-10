@@ -29,7 +29,6 @@ async function updateState(user, state)
     });
 }
 
-
 async function getStates ()
 {
     return await statesCollection.find();
@@ -42,13 +41,34 @@ async function getState (user)
 
 async function updateRunner(value, user)
 {
-    await runningBuildsCollection.updateOne({build: value}, {'$set': user}, {"upsert" : true}, (err, results) => {
-        
-    });
+    await runningBuildsCollection.updateOne({build: value}, {'$set': user}, {"upsert" : true});
 }
+
 async function getRunner (value)
 {
     return await runningBuildsCollection.findOne({build: value});
+}
+
+async function getBuilds()
+{
+    return (await buildsCollection.find()).toArray();
+}
+
+async function addBuild(buildId, projectId, branch, platform, runnerId, downloadUrl, shareUrl, iconUrl)
+{
+    var build =
+    {
+        buildId : buildId,
+        projectId : projectId,
+        branch : branch,
+        platform : platform,
+        runnerId : runnerId,
+        downloadUrl : downloadUrl,
+        shareUrl : shareUrl,
+        iconUrl : iconUrl
+    }
+    
+    await buildsCollection.updateOne({buildId: buildId}, {'$set': build}, {"upsert" : true});
 }
 
 var pendingRunners = {};
@@ -59,5 +79,7 @@ module.exports = {
     updateState : updateState,
     getState : getState,
     getStates : getStates,
+    getBuilds : getBuilds,
+    addBuild : addBuild,
     pendingRunners : pendingRunners
 };

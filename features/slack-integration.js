@@ -69,11 +69,21 @@ module.exports = {
 	onCancelBuildClick: async function(ack, body, context)
 	{
 		var value = JSON.parse(body.actions[0].value);
-		 var state = JSON.parse(body.view.private_metadata);
+	 	var state = JSON.parse(body.view.private_metadata);
 
 		await openLoadingMenu(body, context, "Removing build ");
 		await CancelBuild(value.build);
 		await reloadView(state);
+	},
+
+	onOpenArchiveClick: async function(ack, body, context)
+	{
+		await openBuildsArchiveMenu(body.view.id, context.botToken, body.user.id);
+	},
+
+	onBackClick: async function(ack, body, context)
+	{
+		await reOpenStartMenu(body.view.id, context.botToken, false, body.user.id);
 	},
 
 	reloadView: reloadView
@@ -100,12 +110,16 @@ module.exports = {
 		// 	}
 		// }
   //   });
-
 }
 
 async function reloadView(state)
 {
 	var stateValues = state.values;
+
+	if (state.loading == true)
+	{
+		return;
+	}
 
 	try
 	{
@@ -128,32 +142,60 @@ async function reloadView(state)
 	}
 }
 
-function getBuildStatusTopBlock(runningBuilds)
+function getBuildsArchiveTopBlocks()
 {
+	var blocks = [];
+
 	var block = {
 		"type": "section",
 		"text": {
 			"type": "mrkdwn",
 			"text": "*Build Status*"
-		}
-	}
-	if (runningBuilds.length > 0)
-	{
-		block.accessory =
-		 {
+		},
+		"accessory" :
+	 	{
 			"type": "button",
 			"text": {
 				"type": "plain_text",
-				"text": "Cancel All Builds"
+				"text": "Builds Archive"
 			},
-			"value": JSON.stringify({ value : "cancel_build",
-							build : "_all"
-						}),
-			"action_id": "button",
-			"style": "danger"
+			"value": "asd",
+			"action_id": "builds_archive",
+			"style": "primary"
 		}
 	}
-	return block;
+
+	blocks.push(block);
+
+	return blocks;
+}
+
+function getBackButtonBlocks()
+{
+	var blocks = [];
+
+	var block = 
+		{
+			"type": "actions",
+			"elements": [
+				{
+					"type": "button",
+					"text": {
+						"type": "plain_text",
+						"text": "Back",
+						"emoji": true
+					},
+					"style": "primary",
+					"value": "click_me_123",
+					"action_id": "back"
+				}
+			]
+		}
+	
+
+	blocks.push(block);
+
+	return blocks;
 }
 
 
@@ -332,9 +374,9 @@ function getQueuedBuildsBlock(runningBuilds, queuedBuilds)
 function getBuildStatusBlocksWithBuilds(runningBuilds, queuedBuilds)
 {
 	var blocks = [];
-	// blocks.push(getDivider());
-	// blocks.push(getBuildStatusTopBlock(runningBuilds));
 
+	blocks.push(getDivider());
+	blocks = blocks.concat(getBuildsArchiveTopBlocks());
 	blocks.push(getDivider());
 	blocks = blocks.concat(getRunningBuildsBlock(runningBuilds));
 	blocks.push(getDivider());
@@ -717,18 +759,24 @@ async function InitiateBuild(user, branch, platform, launchUser)
 	
 	var startBuildResponse = await fetch(GetStartBuildURL(user, platform), { method: 'POST', headers: headers});
 	
-	buildsResponse = await fetch(GetStartBuildURL(user, platform), { method: 'GET', headers: headers});
+	buildsResponse = fetch(GetStartBuildURL(user, platform), { method: 'GET', headers: headers})
+      .then(buildsResponse => 
+      {
+		builds = buildsResponse.json();
+		if (builds.length > 0)
+		{
+			postfix = builds[0].build;
+		}
 
-	builds = buildsResponse.json();
+		var key = GetCloudBuildProjectName(user) + platform + postfix;
 
-	if (builds.length > 0)
-	{
-		postfix = builds[0].build;
-	}
+		db.updateRunner(key, extendedBuildInfo);
+      }
 
-	var key = GetCloudBuildProjectName(user) + platform + postfix, extendedBuildInfo;
+      	);
 
-	db.updateRunner(key, extendedBuildInfo);
+
+	
 }
 
 function getPlatformButtonText(branch, platform, readablePlatform, builds)
@@ -853,14 +901,15 @@ async function openPlatformSelectionMenu(viewId, token, user, branch, runningUse
    	
    	var block = {blocks: blocks}
 
-	var state = { values : {menu : "branchSelection", user : user, branch : branch, buildStatusBlocks: buildStatusBlocks}};
+	var state = { values : {menu : "platformSelection", user : user, branch : branch, buildStatusBlocks: buildStatusBlocks}};
 	state.user = runningUser;
+	state.loading = false;
 
    	await updateMenu(viewId, token, block, state);
 }
 
 async function openLoadingMenu(body, context, text)
-{
+{ 
 	var stateValues = JSON.parse(body.view.private_metadata).values;
 
 	var blocks = stateValues.buildStatusBlocks;
@@ -870,7 +919,8 @@ async function openLoadingMenu(body, context, text)
    	var block = {blocks: blocks}
 
 	var state = body.view.private_metadata;
-	state.user = null;
+	//state.user = runningUser;
+	state.loading = true;
 
    	await updateMenu(body.view.id, context.botToken, block, state);
 }
@@ -884,6 +934,122 @@ async function openBranchSelectionMenu(viewId, token, user, runningUser)
    	var block = {blocks: blocks}
 
 	var state = { values : {menu : "branchSelection", user : user, buildStatusBlocks: buildStatusBlocks}};
+	state.user = runningUser;
+	state.loading = false;
+	
+   	await updateMenu(viewId, token, block, state);
+}
+
+function capitalize(str) 
+{
+    str = str.split(" ");
+
+    for (var i = 0, x = str.length; i < x; i++) {
+        str[i] = str[i][0].toUpperCase() + str[i].substr(1);
+    }
+
+    return str.join(" ");
+}
+
+async function getBuildsArchiveBlocks()
+{
+	var builds = await db.getBuilds();
+
+	var blocks = [];
+	for(var i = 0; i < builds.length; i++)
+	{
+		var text = builds[i].branch;
+		text = text.replace(/-/g, ' ');
+		text = capitalize(text);
+		// blocks.push(getTextSection(text));
+		blocks = blocks.concat(getBuildLine(builds[i].iconUrl, text, builds[i].platform, builds[i].downloadUrl, builds[i].shareUrl));
+	}
+
+	return blocks;
+}
+
+async function getBuildLine(icon, text, platform, downloadUrl, installUrl)
+{
+	return [
+        		{	
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "*" + text + "*\n Last built iOS: 22 September 2019\n Last built Android: 22 September 2019"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://s3-media3.fl.yelpcdn.com/bphoto/c7ed05m9lC2EmA3Aruue7A/o.jpg",
+				"alt_text": "alt text for image"
+			}
+		},
+		{
+			"type": "actions",
+			"elements": [
+				{
+					"type": "button",
+					"text": {
+						"type": "plain_text",
+						"text": "Download iOS",
+						"emoji": true
+					},
+					"value": "click_me_123"
+				},
+				{
+					"type": "button",
+					"text": {
+						"type": "plain_text",
+						"text": "Install iOS",
+						"emoji": true
+					},
+					"value": "click_me_123"
+				},
+				{
+					"type": "button",
+					"text": {
+						"type": "plain_text",
+						"text": "Download Android",
+						"emoji": true
+					},
+					"value": "click_me_123"
+				},
+				{
+					"type": "button",
+					"text": {
+						"type": "plain_text",
+						"text": "Install Android",
+						"emoji": true
+					},
+					"value": "click_me_123"
+				},
+                {
+					"type": "button",
+					"text": {
+						"type": "plain_text",
+						"text": "Remove",
+						"emoji": true
+					},
+					"value": "click_me_123",
+                    "style": "danger"
+				}
+			]
+		}
+            ];
+}
+
+async function openBuildsArchiveMenu(viewId, token, runningUser)
+{
+	var blocks = [];
+   	
+	blocks.push(getTextSection("*Builds Archive: *"));
+
+	blocks = blocks.concat(await getBuildsArchiveBlocks());
+
+	blocks = blocks.concat(getBackButtonBlocks());
+
+   	var block = {blocks: blocks}
+
+	var state = { values : {menu : "buildsArchive", buildStatusBlocks: null}};
 	state.user = runningUser;
 
    	await updateMenu(viewId, token, block, state);
@@ -921,6 +1087,7 @@ async function openStartMenu(payload, context)
 	var state = { values : {menu : "start", buildStatusBlocks: buildStatusBlocks}};
 	
 	state.user = payload.user_id;
+	state.loading = false;
 
    	await openMenu(payload.trigger_id, context.botToken, block, state);
 }
@@ -941,7 +1108,7 @@ function createViewFromBlock(block)
 
     var close = {
                 "type": "plain_text",
-                "text": "Cancel",
+                "text": "Quit",
                 "emoji": true
             };
 
@@ -979,8 +1146,6 @@ async function openMenu(trigger_id, token, block, state)
 {
 	var view =  createViewFromBlock(block);
 	view.private_metadata = JSON.stringify(state);
-
-	
 
     var res = await app.client.views.open({
 	    trigger_id: trigger_id,
