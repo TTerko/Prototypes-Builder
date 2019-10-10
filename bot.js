@@ -3,7 +3,7 @@ var express = require('express');
 const { App, ExpressReceiver } = require('@slack/bolt');
 var bodyParser = require('body-parser');
 const fetch = require("node-fetch");
-// var db = require('./features/db-integration');
+var db = require('./features/db-integration');
 var slackIntegration = require("./features/slack-integration");
 
 console.log("start");
