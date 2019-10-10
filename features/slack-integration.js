@@ -32,20 +32,13 @@ module.exports = {
 		await openStartMenu(payload, context);
 	},
 
-	onAddNewBuildClick: async function(ack, body, context)
-	{
-		await openLoadingMenu(body, context, "Adding new build ");
-		await openUserSelectionMenu(body, context);
-	},
-
 	onUserSelected: async function(ack, body, context)
 	{
 		await openLoadingMenu(body, context, "Loading user ");
-			
-
+		
 		var user = body.actions[0].selected_user;
 
-		await openBranchSelectionMenu(body.view.id, context.botToken, user);
+		await openBranchSelectionMenu(body.view.id, context.botToken, user, body.user.id);
 	},
 
 	onBranchSelected: async function(ack, body, context)
@@ -57,7 +50,7 @@ module.exports = {
 		var user = value.user;
 		var branch = value.branch;
 		
-		await openPlatformSelectionMenu(body.view.id, context.botToken, user, branch);
+		await openPlatformSelectionMenu(body.view.id, context.botToken, user, branch, body.user.id);
 	},
 
 	onCreateBuildClick: async function(ack, body, context, platform)
@@ -67,20 +60,23 @@ module.exports = {
 		var user = value.user;
 		var branch = value.branch;
 
-		await openLoadingMenu(body, context, "Starting building! ");
+		openLoadingMenu(body, context, "Starting building! ");
 
 		await StartBuild(user, branch, platform, body.user.id);
-		await reOpenStartMenu(body, context, true);
+		await reOpenStartMenu(body.view.id, context.botToken, true, body.user.id);
 	},
 
 	onCancelBuildClick: async function(ack, body, context)
 	{
 		var value = JSON.parse(body.actions[0].value);
+		 var state = JSON.parse(body.view.private_metadata);
 
 		await openLoadingMenu(body, context, "Removing build ");
 		await CancelBuild(value.build);
-		await reloadView(body, context);
-	}
+		await reloadView(state);
+	},
+
+	reloadView: reloadView
   //   controller.hears('sample','message,direct_message', async(bot, message) => {
   //       await bot.reply(message, 'I heard a sample message.');
   //   });
@@ -107,25 +103,28 @@ module.exports = {
 
 }
 
-async function reloadView(body, context)
+async function reloadView(state)
 {
-	var stateValues = JSON.parse(body.view.private_metadata).values;
+	var stateValues = state.values;
 
-	if (stateValues.menu == "start")
+	try
 	{
-		await reOpenStartMenu(body, context, false);
+		if (stateValues.menu == "start")
+		{
+			await reOpenStartMenu(state.viewId, state.token, false, state.user);
+		}
+		else if (stateValues.menu == "branchSelection")
+		{
+			await openBranchSelectionMenu(state.viewId, state.token, stateValues.user, state.user);
+		}
+		else if (stateValues.menu == "platformSelection")
+		{
+			await openPlatformSelectionMenu(state.viewId, state.token, stateValues.user, stateValues.branch, state.user);
+		}
 	}
-	else if (stateValues.menu == "userSelection")
+	catch(error)
 	{
-		await openUserSelectionMenu(body, context);
-	}
-	else if (stateValues.menu == "branchSelection")
-	{
-		await openBranchSelectionMenu(body.view.id, context.botToken, stateValues.user);
-	}
-	else if (stateValues.menu == "platformSelection")
-	{
-		await openPlatformSelectionMenu(body.view.id, context.botToken, stateValues.user, stateValues.branch);
+
 	}
 }
 
@@ -654,23 +653,19 @@ async function TryRunningBuild(user, branch, platform, launchUser)
 	//await CancelRunningBuilds(branch, platform);
 
 	//var displayName = await getDisplayName(process.env.botToken, message.user);
-
-	db.updateRunner(branch + platform, launchUser);
-
-	await InitiateBuild(user, branch, platform);	
 }
 
 async function StartBuild(user, branch, platform, launchUser)
 {
 	if (platform == "both")
 	{
-		await TryRunningBuild(user, branch, "ios", launchUser);
+		await InitiateBuild(user, branch, "ios", launchUser);
 
-		await TryRunningBuild(user, branch, "android", launchUser);
+		await InitiateBuild(user, branch, "android", launchUser);
 	}
 	else
 	{
-		await TryRunningBuild(user, branch, platform, launchUser);	
+		await InitiateBuild(user, branch, platform, launchUser);	
 	}
 }
 
@@ -690,7 +685,7 @@ function getUserURL(token, user)
 	return "https://slack.com/api/users.info?token=" + token + "&user=" + user;
 }
 
-async function InitiateBuild(user, branch, platform)
+async function InitiateBuild(user, branch, platform, launchUser)
 {
 	var body = {};
 	body.settings = {};
@@ -698,14 +693,14 @@ async function InitiateBuild(user, branch, platform)
 	body.settings.scm.branch = branch;
 	body.settings.platform = {};
 
-	const buildsResponse = await fetch(GetStartBuildURL(user, platform), { method: 'GET', headers: headers});
-
-	const builds = await buildsResponse.json();
 	var postfix = 1;
 
-	if (builds.length > 0)
+	postfix = Math.floor(Date.now() / 1000);
+	
+	var extendedBuildInfo = 
 	{
-		postfix = builds[0].build + 1;
+		user : launchUser,
+		branch : branch
 	}
 
 	var bundleIdCompanyName = "501";
@@ -713,15 +708,27 @@ async function InitiateBuild(user, branch, platform)
 	{
 		bundleIdCompanyName = "studio501";
 	}
-	console.log(branch);
+
+	db.pendingRunners[GetCloudBuildProjectName(user) + platform] = extendedBuildInfo;
 
 	body.settings.platform.bundleId = "com." + bundleIdCompanyName + "." + branch.replace(/[^a-zA-Z ]/g, "") + postfix;
 
-	await fetch(GetCloudBuildTargetURL(user, platform), { method: 'PUT', headers: headers, body:  JSON.stringify(body)});
+	var resp = await fetch(GetCloudBuildTargetURL(user, platform), { method: 'PUT', headers: headers, body:  JSON.stringify(body)});
+	
+	var startBuildResponse = await fetch(GetStartBuildURL(user, platform), { method: 'POST', headers: headers});
+	
+	buildsResponse = await fetch(GetStartBuildURL(user, platform), { method: 'GET', headers: headers});
 
-	console.log(GetStartBuildURL(user, platform));
+	builds = buildsResponse.json();
 
-	await fetch(GetStartBuildURL(user, platform), { method: 'POST', headers: headers});
+	if (builds.length > 0)
+	{
+		postfix = builds[0].build;
+	}
+
+	var key = GetCloudBuildProjectName(user) + platform + postfix, extendedBuildInfo;
+
+	db.updateRunner(key, extendedBuildInfo);
 }
 
 function getPlatformButtonText(branch, platform, readablePlatform, builds)
@@ -821,7 +828,7 @@ async function ReplyInteractiveBlocks(bot, message, blocksArray)
 	};
 	blocksToSend = JSON.stringify(blocksToSend);
 	blocksToSend = JSON.parse(blocksToSend);
-	console.log(blocksToSend);
+	
 	await bot.replyInteractive(message, 
 		{
 			blocks: blocksArray
@@ -829,7 +836,7 @@ async function ReplyInteractiveBlocks(bot, message, blocksArray)
 		});
 }
 
-async function openPlatformSelectionMenu(viewId, token, user, branch)
+async function openPlatformSelectionMenu(viewId, token, user, branch, runningUser)
 {   	
 	var runningBuilds = await GetRunningBuilds();
    	var queuedBuilds = await GetQueuedBuilds();
@@ -847,6 +854,7 @@ async function openPlatformSelectionMenu(viewId, token, user, branch)
    	var block = {blocks: blocks}
 
 	var state = { values : {menu : "branchSelection", user : user, branch : branch, buildStatusBlocks: buildStatusBlocks}};
+	state.user = runningUser;
 
    	await updateMenu(viewId, token, block, state);
 }
@@ -862,11 +870,12 @@ async function openLoadingMenu(body, context, text)
    	var block = {blocks: blocks}
 
 	var state = body.view.private_metadata;
+	state.user = null;
 
    	await updateMenu(body.view.id, context.botToken, block, state);
 }
 
-async function openBranchSelectionMenu(viewId, token, user)
+async function openBranchSelectionMenu(viewId, token, user, runningUser)
 {
    	var buildStatusBlocks = await getBuildStatusBlocks();
 	
@@ -875,22 +884,12 @@ async function openBranchSelectionMenu(viewId, token, user)
    	var block = {blocks: blocks}
 
 	var state = { values : {menu : "branchSelection", user : user, buildStatusBlocks: buildStatusBlocks}};
+	state.user = runningUser;
 
    	await updateMenu(viewId, token, block, state);
 }
 
-async function openUserSelectionMenu(body, context)
-{
-   	var buildStatusBlocks = await getBuildStatusBlocks();
-   	blocks = buildStatusBlocks.concat(getUserSelectionBlocks());
-   	
-   	var block = {blocks: blocks}
-	var state = { values : {menu : "userSelection", buildStatusBlocks: buildStatusBlocks}};
-
-   	await updateMenu(body.view.id, context.botToken, block, state);
-}
-
-async function reOpenStartMenu(body, context, showSuccess)
+async function reOpenStartMenu(viewId, token, showSuccess, runningUser)
 {
 	var blocks = [];
    	var buildStatusBlocks = await getBuildStatusBlocks();
@@ -906,8 +905,9 @@ async function reOpenStartMenu(body, context, showSuccess)
    	var block = {blocks: blocks}
 
 	var state = { values : {menu : "start", buildStatusBlocks: buildStatusBlocks}};
+	state.user = runningUser;
 
-   	await updateMenu(body.view.id, context.botToken, block, state);
+   	await updateMenu(viewId, token, block, state);
 }
 
 async function openStartMenu(payload, context)
@@ -919,6 +919,8 @@ async function openStartMenu(payload, context)
    	var block = {blocks: blocks}
 
 	var state = { values : {menu : "start", buildStatusBlocks: buildStatusBlocks}};
+	
+	state.user = payload.user_id;
 
    	await openMenu(payload.trigger_id, context.botToken, block, state);
 }
@@ -946,6 +948,7 @@ function createViewFromBlock(block)
 	block.type = "modal";
 	block.title = title;
 	block.close = close;
+	// block.submit = submit;
 
 	return block;
 }
@@ -953,8 +956,18 @@ function createViewFromBlock(block)
 async function updateMenu(viewId, token, block, state)
 {
 	var view = createViewFromBlock(block);
-	view.private_metadata = JSON.stringify(state);
+	
+	state.viewId = viewId;
+  	state.token = token;
 
+  	if (state.user != null)
+  	{
+  		db.updateState(state.user, state);	
+  	}
+	
+
+	view.private_metadata = JSON.stringify(state);
+	
     var res = await app.client.views.update({
 	    token: token,
 	    view_id: viewId,
@@ -967,10 +980,16 @@ async function openMenu(trigger_id, token, block, state)
 	var view =  createViewFromBlock(block);
 	view.private_metadata = JSON.stringify(state);
 
+	
+
     var res = await app.client.views.open({
 	    trigger_id: trigger_id,
 	    token: token,
+	    view_id: "test",
 	    view: view
   	});
+  	state.viewId = res.view.id;
+  	state.token = token;
+	db.updateState(state.user, state);
 }
 

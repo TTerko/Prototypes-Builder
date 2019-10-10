@@ -4,6 +4,8 @@ const url = "mongodb+srv://terko:terkoterko@cluster0-vwvvj.mongodb.net/test?retr
 
 var dbo = {};
 var runningBuildsCollection = {};
+var statesCollection = {};
+var buildsCollection = {};
 
 mongo.connect(url, {useNewUrlParser: true}, (err, db) => {
         if(err) {
@@ -14,12 +16,33 @@ mongo.connect(url, {useNewUrlParser: true}, (err, db) => {
         dbo = db.db('slack-integration');
 
         runningBuildsCollection = dbo.collection('running_builds');
+        statesCollection = dbo.collection('states');
+        buildsCollection = dbo.collection('builds');
+
         console.log("database connected");
 }); 
 
+async function updateState(user, state)
+{
+    await statesCollection.updateOne({user: user}, {'$set': {'state': state}}, {"upsert" : true}, (err, results) => {
+        
+    });
+}
+
+
+async function getStates ()
+{
+    return await statesCollection.find();
+}
+
+async function getState (user)
+{
+    return await statesCollection.findOne({user: user});
+}
+
 async function updateRunner(value, user)
 {
-    await runningBuildsCollection.updateOne({build: value}, {'$set': {'user': user}}, {"upsert" : true}, (err, results) => {
+    await runningBuildsCollection.updateOne({build: value}, {'$set': user}, {"upsert" : true}, (err, results) => {
         
     });
 }
@@ -28,7 +51,13 @@ async function getRunner (value)
     return await runningBuildsCollection.findOne({build: value});
 }
 
+var pendingRunners = {};
+
 module.exports = {
     updateRunner : updateRunner,
-    getRunner : getRunner
+    getRunner : getRunner,
+    updateState : updateState,
+    getState : getState,
+    getStates : getStates,
+    pendingRunners : pendingRunners
 };
