@@ -6,8 +6,6 @@ const fetch = require("node-fetch");
 var db = require('./features/db-integration');
 var slackIntegration = require("./features/slack-integration");
 
-console.log("start");
-
 unityHeaders = { "Content-type" : "application/json",
         'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
 slackHeaders = { 'Content-type' : 'application/json' };
