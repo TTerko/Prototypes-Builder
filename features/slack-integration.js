@@ -975,7 +975,7 @@ async function getBuildLine(icon, text, platform, downloadUrl, installUrl)
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": "*" + text + "*\n Last built iOS: 22 September 2019\n Last built Android: 22 September 2019"
+				"text": "*Last built iOS: 22 September 2019\n Last built Android: 22 September 2019"
 			},
 			"accessory": {
 				"type": "image",
