@@ -361,9 +361,9 @@ async function onBuildQueued(body)
 
 async function getUserNotifyTag(branch, platform)
 {
-    var userObject = await db.getRunner(branch + platform);
+    //var userObject = await db.getRunner(branch + platform);
 
-    return " <@" + userObject.user + ">";
+    return " <@";// + userObject.user + ">";
 }
 
 async function onBuildCanceled(body)
