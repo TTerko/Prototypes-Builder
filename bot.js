@@ -238,8 +238,9 @@ async function onBuildStarted(body)
     var buildStatus = await getBuildStatus(buildData);
 
     var branch = buildStatus.scmBranch;
-
-    await say(getBuildInfoPrefix(buildStatus) + " started! :building_construction:" + getUserNotifyTag(branch, buildStatus.platform));  
+    var tag = await getUserNotifyTag(branch, buildStatus.platform);
+    
+    await say(getBuildInfoPrefix(buildStatus) + " started! :building_construction:" + tag);  
 }
 
 async function getShareId(buildData)
