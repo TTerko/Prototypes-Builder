@@ -5,6 +5,12 @@ var bodyParser = require('body-parser');
 const fetch = require("node-fetch");
 var db = require('./features/db-integration');
 var slackIntegration = require("./features/slack-integration");
+var http = require("http");
+
+setInterval(function() {
+    console.log("ping");
+    http.get("http://prototypesbuilder.herokuapp.com");
+}, 300000); // every 5 minutes (300000)
 
 unityHeaders = { "Content-type" : "application/json",
         'Authorization': 'Basic b182563c74cc832f104816a9ecdeee15'};
