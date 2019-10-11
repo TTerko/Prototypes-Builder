@@ -1042,11 +1042,11 @@ function getBuildLine(icon, name,
 					 androidDownloadUrl, androidInstallUrl)
 {
 
-	var iosText = ":ios:" + " [" + iosBuildTime +  "]: " + " *build " + iosBuild + "* " +
+	var iosText = ":ios:" + " [" + iosBuildTime +  "]: " + " *build " + iosBuild + "* | " +
 				  "<" + iosInstallUrl + "|Install>" + "\n\n";
 				  // "<" + iosDownloadUrl + "|Download .ipa>" + "\n\n";
 
-	var androidText =  ":android:" + " [" + androidBuildTime +  "]: " + " *build " + androidBuild + "* " +
+	var androidText =  ":android:" + " [" + androidBuildTime +  "]: " + " *build " + androidBuild + "* | " +
 				 "<" + androidInstallUrl + "|Install>"; //+ 
 				 // "<" + androidDownloadUrl + "|Download .apk>";
 
@@ -1073,16 +1073,21 @@ function getBuildLine(icon, name,
 				"image_url": icon,
 				"alt_text": "alt text for image"
 			},
+		},
+		{
+			"type": "actions",
+			"elements": [
+			]
 		}
     ];
 
     if (iosBuild != null)
 	{
-    	blocks.push(getDownloadButton("Download :ios:", iosInstallUrl));
+    	blocks[1].elements.push(getDownloadButton("Download :ios:", iosInstallUrl));
 	}
 	if (androidBuild != null)
 	{
-		blocks.push(getDownloadButton("Download :android:", androidInstallUrl));
+		blocks[1].elements.push(getDownloadButton("Download :android:", androidInstallUrl));
 	}
 
 
