@@ -62,8 +62,8 @@ module.exports = {
 
 		openLoadingMenu(body, context, "Starting building! ");
 
-		await StartBuild(user, branch, platform, body.user.id);
 		await reOpenStartMenu(body.view.id, context.botToken, true, body.user.id);
+		await StartBuild(user, branch, platform, body.user.id);
 	},
 
 	onCancelBuildClick: async function(ack, body, context)
@@ -924,7 +924,7 @@ async function openLoadingMenu(body, context, text)
    	var block = {blocks: blocks}
 
 	var state = body.view.private_metadata;
-	//state.user = runningUser;
+	state.user = null;
 	state.loading = true;
 
    	await updateMenu(body.view.id, context.botToken, block, state);
@@ -1074,24 +1074,8 @@ function getBuildLine(icon, name,
 				"alt_text": "alt text for image"
 			}
 		}
-		// {
-		// 	"type": "actions",
-		// 	"elements": [
-				
-		// 	]
-		// }
     ];
 
-    // if (iosBuild != null)
-    // {
-    // 	blocks[1].elements.push(getDownloadButton("Install :ios:", iosDownloadUrl));
-    // 	blocks[1].elements.push(getDownloadButton("Download :ios:", iosInstallUrl));
-    // }
-    // if (androidBuild != null)
-    // {
-    // 	blocks[1].elements.push(getDownloadButton("Install :android:", androidDownloadUrl));
-    // 	blocks[1].elements.push(getDownloadButton("Download :android:", androidInstallUrl));
-    // }
 	return blocks;
 }
 
