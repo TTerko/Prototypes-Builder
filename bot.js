@@ -47,6 +47,7 @@ app.command('/testbuild', ({ ack, payload, context }) => {
     // Acknowledge the command request
     ack();
 
+    
     try {
         slackIntegration.open(ack, payload, context);
     }
@@ -256,7 +257,13 @@ function hyphenize(str)
 
 function getBuildData(body)
 {
-    return {projectid: hyphenize(body.projectName), buildtargetid: hyphenize(body.buildTargetName), build: body.buildNumber, platform : body.platform};
+    return {
+        projectid: 
+        hyphenize(body.projectName), 
+        buildtargetid: hyphenize(body.buildTargetName),
+        build: body.buildNumber, 
+        platform : body.platform
+    };
 }
 
 
@@ -315,10 +322,10 @@ async function onBuildSuccess(body)
     var platform = buildData.platform;
     var build = buildData.build;
     var downloadUrl = shareDetails.links.download_primary.href;
-    var projectId = "prototypes-oles";
-    var buildId = projectId + branch + platform;
+    var projectId = hyphenize(body.projectName);
+    var buildId = projectId + branch;
 
-    db.addBuild(buildId, projectId, branch, platform, runnerId, downloadUrl, shareUrl, iconUrl);
+    db.addBuild(buildId, projectId, branch, platform, build, runnerId, downloadUrl, shareUrl, iconUrl);
 
     var message = {};
     message.text = getBuildInfoPrefix(branch, platform, build) +
@@ -326,6 +333,8 @@ async function onBuildSuccess(body)
 
     message.icon = iconUrl;
     
+    db.removeRunner(buildData.projectid, buildData.platform, buildData.build);
+
     await sayDownloadApp(message, downloadUrl, shareUrl, platform);  
 }
 
@@ -371,15 +380,14 @@ async function onBuildQueued(body)
     var branch = extendedBuildInfo.branch;
 
     var tag = await getUserNotifyTag(extendedBuildInfo.user);
-        
+
     await say(getBuildInfoPrefix(extendedBuildInfo.branch, buildData.platform, buildData.build) +
      " was put into queue :vertical_traffic_light:" + tag);  
 }
 
 async function getMoreBuildInfo(buildData)
 {
-    var key = buildData.projectid + buildData.platform + buildData.build;
-    var userObject = await db.getRunner(key)
+    var userObject = await db.getRunner(buildData.projectid, buildData.platform, buildData.build);
     
     if (userObject == null)
     {
@@ -410,6 +418,7 @@ async function onBuildCanceled(body)
     var branch = extendedBuildInfo.branch;
 
     var tag = await getUserNotifyTag(extendedBuildInfo.user);
+    db.removeRunner(buildData.projectid, buildData.platform, buildData.build);
 
     await say("~" + getBuildInfoPrefix(extendedBuildInfo.branch, buildData.platform, buildData.build) + " was canceled~ :heavy_multiplication_x:" + tag);  
 }
@@ -424,6 +433,7 @@ async function onBuildFailed(body)
     var codeLog = "\n```" + log + "```";
 
     var tag = await getUserNotifyTag(extendedBuildInfo.user);
+    db.removeRunner(buildData.projectid, buildData.platform, buildData.build);
     await say(getBuildInfoPrefix(extendedBuildInfo.branch, buildData.platform, buildData.build) + " FAILED :x:"  + tag + codeLog);  
 }
 
@@ -435,22 +445,6 @@ async function say(message)
               method: 'POST',
               headers: slackHeaders,
               body: JSON.stringify({
-                    "type": "modal",
-                    "title": {
-                        "type": "plain_text",
-                        "text": "My App",
-                        "emoji": true
-                    },
-                    "submit": {
-                        "type": "plain_text",
-                        "text": "Submit",
-                        "emoji": true
-                    },
-                    "close": {
-                        "type": "plain_text",
-                        "text": "Cancel",
-                        "emoji": true
-                    },
                     "blocks": [
                         {
                             "type": "context",

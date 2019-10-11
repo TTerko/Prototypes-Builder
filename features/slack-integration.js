@@ -78,7 +78,6 @@ module.exports = {
 
 	onOpenArchiveClick: async function(ack, body, context)
 	{
-		// console.log(body);
 		await openBuildsArchiveMenu(body.trigger_id, context.botToken, body.user.id);
 		//await openBuildsArchiveMenu(body.view.id, context.botToken, body.user.id);
 	},
@@ -764,17 +763,21 @@ async function InitiateBuild(user, branch, platform, launchUser)
 	buildsResponse = fetch(GetStartBuildURL(user, platform), { method: 'GET', headers: headers})
       .then(buildsResponse => 
       {
-		builds = buildsResponse.json();
-		if (builds.length > 0)
+		buildsResponse.json().then(builds =>
 		{
-			postfix = builds[0].build;
+			var buildNumber = -1;
+
+			if (builds.length > 0)
+			{
+				buildNumber = builds[0].build;
+			}
+
+			db.updateRunner(GetCloudBuildProjectName(user), platform, branch, buildNumber, user);
+		      
+		 }
+			);
+		
 		}
-
-		var key = GetCloudBuildProjectName(user) + platform + postfix;
-
-		db.updateRunner(key, extendedBuildInfo);
-      }
-
       	);
 
 
@@ -953,27 +956,48 @@ function capitalize(str)
     return str.join(" ");
 }
 
+function convertTimeStampToDate(ts)
+{
+	if (ts == null)
+	{
+		return "";
+	}
+
+	var date = new Date(ts);
+	var months_arr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+ 	var day = date.getDate();
+ 	var year = date.getFullYear();
+ 	var month = months_arr[date.getMonth()];
+
+ 	return day + '/' + month + '/' + year;
+}
+
 async function getBuildsArchiveBlocks()
 {
 	var builds = await db.getBuilds();
 
 	var blocks = [];
 
-	//for(var i = 0; i < builds.length; i++)
-	for(var i = 0; i < 5; i++)	
+	for(var i = 0; i < builds.length; i++)
 	{
-		var name = builds[0].branch;
+		var build = builds[i];
+
+		var name = build.branch;
+
 		name = name.replace(/-/g, ' ');
 		name = capitalize(name);
-		var icon = "https://storage.googleapis.com/unitycloud-build-user-svc-live-extras-pub/192390/1d488b3a-67a2-4143-a2fb-ec00260f9abf/android-84/icon.png";
-		var iosBuild = 45;
-		var iosBuildTime = "22/09/2019";
-		var androidBuild = 45;
-		var androidBuildTime = "22/09/2019";
-		var iosDownloadUrl = "http://google.com";
-		var iosInstallUrl = "http://google.com";
-		var androidDownloadUrl = "http://google.com";
-		var androidInstallUrl = "http://google.com";
+
+		var icon = build.iconUrl;
+
+		var iosBuild =  build.iosBuild;
+		var iosBuildTime = convertTimeStampToDate(build.iosTimeStamp);
+		var iosDownloadUrl = build.iosDownloadUrl;
+		var iosInstallUrl = build.iosShareUrl;
+
+		var androidBuild =  build.androidBuild;
+		var androidBuildTime = convertTimeStampToDate(build.androidTimeStamp);
+		var androidDownloadUrl = build.androidDownloadUrl;
+		var androidInstallUrl = build.androidShareUrl;
 
 		blocks = blocks.concat(getBuildLine(icon, name, 
 					 iosBuild,
@@ -984,6 +1008,11 @@ async function getBuildsArchiveBlocks()
 					 androidDownloadUrl, androidInstallUrl));
 
 		blocks.push(getDivider());
+	}
+
+	if (builds.length == 0)
+	{
+		builds.push(getTextSection("Empty"));
 	}
 
 	return blocks;
@@ -1012,18 +1041,32 @@ function getBuildLine(icon, name,
 					 iosDownloadUrl, iosInstallUrl, 
 					 androidDownloadUrl, androidInstallUrl)
 {
+
+	var iosText = ":ios:" + " [" + iosBuildTime +  "]: " + " *build " + iosBuild + "* " +
+				  "<" + iosInstallUrl + "|Install>" + "  |  " + 
+				  "<" + iosDownloadUrl + "|Download .ipa>" + "\n\n";
+
+	var androidText =  ":android:" + " [" + androidBuildTime +  "]: " + " *build " + androidBuild + "* " +
+				 "<" + androidInstallUrl + "|Install>" + "  |  " + 
+				 "<" + androidDownloadUrl + "|Download .apk>";
+
+	if (iosBuild == null)
+	{
+		iosText = "";
+	}
+	if (androidBuild == null)
+	{
+		androidText = "";
+	}
+
 	var blocks = [
 		{
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
 				"text": "*" + name + "*\n\n" +
-				 ":ios:" + " [" + iosBuildTime +  "]: " + " *build " + iosBuild + "* " +
-				  "<" + iosDownloadUrl + "|Download>" + "  |  " + 
-				  "<" + iosInstallUrl + "|Install>" + "\n\n" +
-				 ":android:" + " [" + androidBuildTime +  "]: " + " *build " + androidBuild + "* " +
-				 "<" + androidDownloadUrl + "|Download>" + "  |  " + 
-				 "<" + androidInstallUrl + "|Install>"
+				 iosText +
+				androidText
 			},
 			"accessory": {
 				"type": "image",
@@ -1058,7 +1101,7 @@ async function openBuildsArchiveMenu(viewId, token, runningUser)
    	
 	blocks = blocks.concat(await getBuildsArchiveBlocks());
 
-	blocks = blocks.concat(getBackButtonBlocks());
+	// blocks = blocks.concat(getBackButtonBlocks());
 
    	var block = {blocks: blocks}
 
@@ -1132,7 +1175,6 @@ function createViewFromBlock(block, cancelText, titleText)
                 "emoji": true
             };
 
-    console.log(cancelText);
 	block.type = "modal";
 	block.title = title;
 	block.close = close;
