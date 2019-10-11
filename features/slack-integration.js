@@ -1043,7 +1043,7 @@ function getBuildLine(icon, name,
 					 androidDownloadUrl, androidInstallUrl)
 {
 
-	var iosText = ":ios:" + " [" + iosBuildTime +  "]: " + " *build " + iosBuild + "* ";
+	var iosText = ":ios:" + " [" + iosBuildTime +  "]: " + " *build " + iosBuild + "* \n\n";
 				  // "<" + iosInstallUrl + "|Install>" + "\n\n";
 				  // "<" + iosDownloadUrl + "|Download .ipa>" + "\n\n";
 
