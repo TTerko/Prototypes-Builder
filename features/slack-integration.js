@@ -78,7 +78,9 @@ module.exports = {
 
 	onOpenArchiveClick: async function(ack, body, context)
 	{
-		await openBuildsArchiveMenu(body.view.id, context.botToken, body.user.id);
+		// console.log(body);
+		await openBuildsArchiveMenu(body.trigger_id, context.botToken, body.user.id);
+		//await openBuildsArchiveMenu(body.view.id, context.botToken, body.user.id);
 	},
 
 	onBackClick: async function(ack, body, context)
@@ -956,93 +958,104 @@ async function getBuildsArchiveBlocks()
 	var builds = await db.getBuilds();
 
 	var blocks = [];
-	for(var i = 0; i < builds.length; i++)
+
+	//for(var i = 0; i < builds.length; i++)
+	for(var i = 0; i < 5; i++)	
 	{
-		var text = builds[i].branch;
-		text = text.replace(/-/g, ' ');
-		text = capitalize(text);
-		// blocks.push(getTextSection(text));
-		blocks = blocks.concat(getBuildLine(builds[i].iconUrl, text, builds[i].platform, builds[i].downloadUrl, builds[i].shareUrl));
+		var name = builds[0].branch;
+		name = name.replace(/-/g, ' ');
+		name = capitalize(name);
+		var icon = "https://storage.googleapis.com/unitycloud-build-user-svc-live-extras-pub/192390/1d488b3a-67a2-4143-a2fb-ec00260f9abf/android-84/icon.png";
+		var iosBuild = 45;
+		var iosBuildTime = "22/09/2019";
+		var androidBuild = 45;
+		var androidBuildTime = "22/09/2019";
+		var iosDownloadUrl = "http://google.com";
+		var iosInstallUrl = "http://google.com";
+		var androidDownloadUrl = "http://google.com";
+		var androidInstallUrl = "http://google.com";
+
+		blocks = blocks.concat(getBuildLine(icon, name, 
+					 iosBuild,
+					 iosBuildTime,
+				     androidBuild,
+				     androidBuildTime,
+					 iosDownloadUrl, iosInstallUrl, 
+					 androidDownloadUrl, androidInstallUrl));
+
+		blocks.push(getDivider());
 	}
 
 	return blocks;
 }
 
-async function getBuildLine(icon, text, platform, downloadUrl, installUrl)
+function getDownloadButton(text, url)
 {
-	return [
-        		{	
+	return {
+			"type": "button",
+			"text": {
+				"type": "plain_text",
+				"text": text,
+				"emoji": true
+			},
+			"value": "click_me_123",
+			"style": "primary",
+			"url": url	
+	}	
+}
+
+function getBuildLine(icon, name, 
+					 iosBuild,
+					 iosBuildTime,
+				     androidBuild,
+				     androidBuildTime,
+					 iosDownloadUrl, iosInstallUrl, 
+					 androidDownloadUrl, androidInstallUrl)
+{
+	var blocks = [
+		{
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": "*Last built iOS: 22 September 2019\n Last built Android: 22 September 2019"
+				"text": "*" + name + "*\n\n" +
+				 ":ios:" + " [" + iosBuildTime +  "]: " + " *build " + iosBuild + "* " +
+				  "<" + iosDownloadUrl + "|Download>" + "  |  " + 
+				  "<" + iosInstallUrl + "|Install>" + "\n\n" +
+				 ":android:" + " [" + androidBuildTime +  "]: " + " *build " + androidBuild + "* " +
+				 "<" + androidDownloadUrl + "|Download>" + "  |  " + 
+				 "<" + androidInstallUrl + "|Install>"
 			},
 			"accessory": {
 				"type": "image",
-				"image_url": "https://s3-media3.fl.yelpcdn.com/bphoto/c7ed05m9lC2EmA3Aruue7A/o.jpg",
+				"image_url": icon,
 				"alt_text": "alt text for image"
 			}
-		},
-		{
-			"type": "actions",
-			"elements": [
-				{
-					"type": "button",
-					"text": {
-						"type": "plain_text",
-						"text": "Download iOS",
-						"emoji": true
-					},
-					"value": "click_me_123"
-				},
-				{
-					"type": "button",
-					"text": {
-						"type": "plain_text",
-						"text": "Install iOS",
-						"emoji": true
-					},
-					"value": "click_me_123"
-				},
-				{
-					"type": "button",
-					"text": {
-						"type": "plain_text",
-						"text": "Download Android",
-						"emoji": true
-					},
-					"value": "click_me_123"
-				},
-				{
-					"type": "button",
-					"text": {
-						"type": "plain_text",
-						"text": "Install Android",
-						"emoji": true
-					},
-					"value": "click_me_123"
-				},
-                {
-					"type": "button",
-					"text": {
-						"type": "plain_text",
-						"text": "Remove",
-						"emoji": true
-					},
-					"value": "click_me_123",
-                    "style": "danger"
-				}
-			]
 		}
-            ];
+		// {
+		// 	"type": "actions",
+		// 	"elements": [
+				
+		// 	]
+		// }
+    ];
+
+    // if (iosBuild != null)
+    // {
+    // 	blocks[1].elements.push(getDownloadButton("Install :ios:", iosDownloadUrl));
+    // 	blocks[1].elements.push(getDownloadButton("Download :ios:", iosInstallUrl));
+    // }
+    // if (androidBuild != null)
+    // {
+    // 	blocks[1].elements.push(getDownloadButton("Install :android:", androidDownloadUrl));
+    // 	blocks[1].elements.push(getDownloadButton("Download :android:", androidInstallUrl));
+    // }
+	return blocks;
 }
 
 async function openBuildsArchiveMenu(viewId, token, runningUser)
 {
 	var blocks = [];
    	
-	blocks.push(getTextSection("*Builds Archive: *"));
-
 	blocks = blocks.concat(await getBuildsArchiveBlocks());
 
 	blocks = blocks.concat(getBackButtonBlocks());
@@ -1052,7 +1065,7 @@ async function openBuildsArchiveMenu(viewId, token, runningUser)
 	var state = { values : {menu : "buildsArchive", buildStatusBlocks: null}};
 	state.user = runningUser;
 
-   	await updateMenu(viewId, token, block, state);
+   	await pushMenu(viewId, token, block, state);
 }
 
 async function reOpenStartMenu(viewId, token, showSuccess, runningUser)
@@ -1092,11 +1105,18 @@ async function openStartMenu(payload, context)
    	await openMenu(payload.trigger_id, context.botToken, block, state);
 }
 
-function createViewFromBlock(block)
+function createViewFromBlock(block, cancelText, titleText)
 {
+	var defaultTitle = "Prototypes Builder";
+
+	if (titleText != null)
+	{
+		defaultTitle = titleText;
+	}
+
 	var title =  {
             "type": "plain_text",
-            "text": "Prototypes Builder",
+            "text": defaultTitle,
             "emoji": true
         };
 
@@ -1108,10 +1128,11 @@ function createViewFromBlock(block)
 
     var close = {
                 "type": "plain_text",
-                "text": "Quit",
+                "text": cancelText,
                 "emoji": true
             };
 
+    console.log(cancelText);
 	block.type = "modal";
 	block.title = title;
 	block.close = close;
@@ -1120,9 +1141,20 @@ function createViewFromBlock(block)
 	return block;
 }
 
+async function pushMenu(trigger_id, token, block, state)
+{
+	var view = createViewFromBlock(block, "Back", "Builds Archive");
+	
+    var res = await app.client.views.push({
+	    token: token,
+	    trigger_id: trigger_id,
+	    view: view
+  	});
+}
+
 async function updateMenu(viewId, token, block, state)
 {
-	var view = createViewFromBlock(block);
+	var view = createViewFromBlock(block, "Quit");
 	
 	state.viewId = viewId;
   	state.token = token;
@@ -1144,13 +1176,12 @@ async function updateMenu(viewId, token, block, state)
 
 async function openMenu(trigger_id, token, block, state)
 {
-	var view =  createViewFromBlock(block);
+	var view =  createViewFromBlock(block, "Quit");
 	view.private_metadata = JSON.stringify(state);
 
     var res = await app.client.views.open({
 	    trigger_id: trigger_id,
 	    token: token,
-	    view_id: "test",
 	    view: view
   	});
   	state.viewId = res.view.id;
