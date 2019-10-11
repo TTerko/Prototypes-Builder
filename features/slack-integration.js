@@ -964,12 +964,13 @@ function convertTimeStampToDate(ts)
 	}
 
 	var date = new Date(ts);
-	var months_arr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+	//var months_arr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+	var months_arr = ['January','February','March','April','May','June','July','August','September','October','November','December'];
  	var day = date.getDate();
  	var year = date.getFullYear();
  	var month = months_arr[date.getMonth()];
 
- 	return day + '/' + month + '/' + year;
+ 	return day + ' ' + month + ' ' + year;
 }
 
 async function getBuildsArchiveBlocks()
@@ -1042,12 +1043,12 @@ function getBuildLine(icon, name,
 					 androidDownloadUrl, androidInstallUrl)
 {
 
-	var iosText = ":ios:" + " [" + iosBuildTime +  "]: " + " *build " + iosBuild + "* | " +
-				  "<" + iosInstallUrl + "|Install>" + "\n\n";
+	var iosText = ":ios:" + " [" + iosBuildTime +  "]: " + " *build " + iosBuild + "* ";
+				  // "<" + iosInstallUrl + "|Install>" + "\n\n";
 				  // "<" + iosDownloadUrl + "|Download .ipa>" + "\n\n";
 
-	var androidText =  ":android:" + " [" + androidBuildTime +  "]: " + " *build " + androidBuild + "* | " +
-				 "<" + androidInstallUrl + "|Install>"; //+ 
+	var androidText =  ":android:" + " [" + androidBuildTime +  "]: " + " *build " + androidBuild + "* ";
+				 // "<" + androidInstallUrl + "|Install>"; //+ 
 				 // "<" + androidDownloadUrl + "|Download .apk>";
 
 	if (iosBuild == null)
@@ -1083,11 +1084,11 @@ function getBuildLine(icon, name,
 
     if (iosBuild != null)
 	{
-    	blocks[1].elements.push(getDownloadButton("Download :ios:", iosInstallUrl));
+    	blocks[1].elements.push(getDownloadButton("iOS :ios:", iosInstallUrl));
 	}
 	if (androidBuild != null)
 	{
-		blocks[1].elements.push(getDownloadButton("Download :android:", androidInstallUrl));
+		blocks[1].elements.push(getDownloadButton("Android :android:", androidInstallUrl));
 	}
 
 
