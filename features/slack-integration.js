@@ -151,7 +151,7 @@ function getBuildsArchiveTopBlocks()
 		"type": "section",
 		"text": {
 			"type": "mrkdwn",
-			"text": "*Build Status*"
+			"text": "*Builds Archive*"
 		},
 		"accessory" :
 	 	{
@@ -772,7 +772,7 @@ async function InitiateBuild(user, branch, platform, launchUser)
 				buildNumber = builds[0].build;
 			}
 
-			db.updateRunner(GetCloudBuildProjectName(user), platform, branch, buildNumber, user);
+			db.updateRunner(GetCloudBuildProjectName(user), platform, branch, buildNumber, launchUser);
 		      
 		 }
 			);
@@ -1043,12 +1043,12 @@ function getBuildLine(icon, name,
 {
 
 	var iosText = ":ios:" + " [" + iosBuildTime +  "]: " + " *build " + iosBuild + "* " +
-				  "<" + iosInstallUrl + "|Install>" + "  |  " + 
-				  "<" + iosDownloadUrl + "|Download .ipa>" + "\n\n";
+				  "<" + iosInstallUrl + "|Install>" + "\n\n";
+				  // "<" + iosDownloadUrl + "|Download .ipa>" + "\n\n";
 
 	var androidText =  ":android:" + " [" + androidBuildTime +  "]: " + " *build " + androidBuild + "* " +
-				 "<" + androidInstallUrl + "|Install>" + "  |  " + 
-				 "<" + androidDownloadUrl + "|Download .apk>";
+				 "<" + androidInstallUrl + "|Install>"; //+ 
+				 // "<" + androidDownloadUrl + "|Download .apk>";
 
 	if (iosBuild == null)
 	{
