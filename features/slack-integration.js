@@ -1072,9 +1072,19 @@ function getBuildLine(icon, name,
 				"type": "image",
 				"image_url": icon,
 				"alt_text": "alt text for image"
-			}
+			},
 		}
     ];
+
+    if (iosBuild == null)
+	{
+    	blocks.push(getDownloadButton("Download :ios:", iosInstallUrl));
+	}
+	if (androidBuild == null)
+	{
+		blocks.push(getDownloadButton("Download :android:", androidInstallUrl));
+	}
+
 
 	return blocks;
 }
