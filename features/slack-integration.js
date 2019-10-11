@@ -1076,11 +1076,11 @@ function getBuildLine(icon, name,
 		}
     ];
 
-    if (iosBuild == null)
+    if (iosBuild != null)
 	{
     	blocks.push(getDownloadButton("Download :ios:", iosInstallUrl));
 	}
-	if (androidBuild == null)
+	if (androidBuild != null)
 	{
 		blocks.push(getDownloadButton("Download :android:", androidInstallUrl));
 	}
