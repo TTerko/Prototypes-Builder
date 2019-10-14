@@ -67,7 +67,7 @@ async function removeRunner (projectId, platform, build)
 
 async function getBuilds()
 {
-    return (await latestBuildsCollection.find()).toArray();
+    return (await latestBuildsCollection.find().sort( { timeStamp: -1 } )).toArray();
 }
 
 async function addBuild(buildId, projectId, branch, platform, build, runnerId, downloadUrl, shareUrl, iconUrl)
@@ -84,7 +84,8 @@ async function addBuild(buildId, projectId, branch, platform, build, runnerId, d
         [platform + "DownloadUrl"] : downloadUrl,
         [platform + "ShareUrl"] : shareUrl,
         iconUrl : iconUrl,
-        [platform + "TimeStamp"] : date.getTime()
+        [platform + "TimeStamp"] : date.getTime(),
+        timeStamp : date.getTime()
     }
 
     var build =
