@@ -456,7 +456,7 @@ async function say(message)
                             "type": "context",
                             "elements": [
                                 {
-                                    "type": "mrkdwn",
+                                    "type": "plain_text",
                                     "text": message
                                 }
                             ]
@@ -500,7 +500,7 @@ async function sayDownloadApp(message, downloadLink, installLink, platform)
                             "alt_text": "images"
                         },
                         {
-                            "type": "mrkdwn",
+                            "type": "plain_text",
                             "text": message.text
                         }
                     ]
