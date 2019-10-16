@@ -312,6 +312,17 @@ async function getShareDetails(shareId)
     return resJson;
 }
 
+retrieveStatus = async (url) => {
+          try {
+            const res = await fetch(url);
+            const { status } = res; 
+            return status;
+          } catch (err) {
+           // handle error for example
+            console.error(err);
+          }
+        }
+
 async function onBuildSuccess(body)
 {
     var buildData = getBuildData(body);
@@ -336,6 +347,13 @@ async function onBuildSuccess(body)
     var message = {};
     message.text = getBuildInfoPrefix(branch, platform, build) +
      " successfuly finished! :classical_building: :checkered_flag:" + tag;
+
+    var status = await retrieveStatus(iconUrl);
+
+    if (status == 404)
+    {
+        iconUrl = "https://wooplex.files.wordpress.com/2019/10/unity_icon.png";
+    }
 
     message.icon = iconUrl;
     
