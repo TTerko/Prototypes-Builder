@@ -979,9 +979,28 @@ async function getBuildsArchiveBlocks()
 
 	var blocks = [];
 
+retrieveStatus = async (url) => {
+		  try {
+		    const res = await fetch(url);
+		    const { status } = res; 
+		    return status;
+		  } catch (err) {
+		   // handle error for example
+		    console.error(err);
+		  }
+		}
+
 	for(var i = 0; i < builds.length; i++)
 	{
 		var build = builds[i];
+		
+		
+		var status = await retrieveStatus(build.iconUrl);
+
+		if (status == 404)
+		{
+			build.iconUrl = "https://wooplex.files.wordpress.com/2019/10/unity_icon.png";
+		}
 
 		var name = build.branch;
 
@@ -989,7 +1008,7 @@ async function getBuildsArchiveBlocks()
 		name = capitalize(name);
 
 		var icon = build.iconUrl;
-
+		fetch
 		var iosBuild =  build.iosBuild;
 		var iosBuildTime = convertTimeStampToDate(build.iosTimeStamp);
 		var iosDownloadUrl = build.iosDownloadUrl;
